@@ -95,22 +95,23 @@ class ControlBar(Frame):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
+        #variables
         self.volume_var = IntVar()
         self.scale_var = DoubleVar() #time of the video scale var
         self.timeslider_last_val = 0.0
         self.timer = ttkTimer(self.parent.playback_panel.videopanel.OnTimer, 1.0)
 
+        #buttons and other widgets
         self.pause = Button(self, text="||", command=self.parent.playback_panel.videopanel.OnPause, width=4)
         self.play = Button(self, text=">", command=self.parent.playback_panel.videopanel.OnPlay, width=4)
         self.stop = Button(self, text="#", command=self.parent.playback_panel.videopanel.OnStop, width=4)
-        self.speedup = Button(self, text=">>", command=self.parent.playback_panel.videopanel.OnFwd5sec, width=4) #TODO: speedup
-        self.speeddown = Button(self, text="<<", command=self.parent.playback_panel.videopanel.OnBwd5sec, width=4) #TODO: speeddown
-        self.zoomin = Button(self, text=">$", width=4)  # TODO: zoomin
-        self.zoomout = Button(self, text="<$", width=4)  # TODO: zoomout
+        self.speedup = Button(self, text=">>", command=self.parent.playback_panel.videopanel.OnSpeedUp, width=4)
+        self.speeddown = Button(self, text="<<", command=self.parent.playback_panel.videopanel.OnSpeedDown, width=4)
+        self.zoomin = Button(self, text=">$", width=4, command=self.parent.playback_panel.videopanel.OnZoomIn)
+        self.zoomout = Button(self, text="<$", width=4, command=self.parent.playback_panel.videopanel.OnZoomOut)
         self.iforward = Button(self, text=">@", width=4)  # TODO: intellegent forward
         self.ibackword = Button(self, text="<@", width=4)  # TODO: intellegent backward
-        self.fullsc = Button(self, text="^", width=4)  # TODO: full screen
-        #print_time = Button(self, text="Print Time", command=self.parent.playback_panel.videopanel.OnPrintTime)
+        self.fullsc = Button(self, text="^", width=4, command=self.parent.playback_panel.videopanel.OnFullScreen)
         self.set_grid = Button(self, text="Set Grid", command=self.parent.playback_panel.videopanel.OnSetGrid)
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.videopanel.volume_sel,
                                   from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
@@ -121,7 +122,7 @@ class ControlBar(Frame):
         self.currentTimeLabel.pack(side=RIGHT)
         self.timeslider.pack(side=RIGHT, fill=X, expand=1)
 
-
+        #packing
         self.timeScaleFrame.pack(side=TOP, fill=X, expand=1)
         self.play.pack(side=LEFT, fill=Y)
         self.pause.pack(side=LEFT, fill=Y)
@@ -130,16 +131,16 @@ class ControlBar(Frame):
         self.set_grid.pack(side=LEFT, fill=Y)
         self.speedup.pack(side=LEFT, fill=Y)
         self.speeddown.pack(side=LEFT, fill=Y)
-        #print_time.pack(side=LEFT, fill=Y)
         self.zoomin.pack(side=LEFT, fill=Y)
         self.zoomout.pack(side=LEFT, fill=Y)
         self.iforward.pack(side=LEFT, fill=Y)
         self.ibackword.pack(side=LEFT, fill=Y)
         self.fullsc.pack(side=LEFT, fill=Y)
 
-
+        #bind to status bar function
         self.bind_all('<Enter>', self.parent.status_bar.DisplayOnLabel)
 
+        #timer thread
         self.timer.start()
         self.parent.parent.update()
 
@@ -156,7 +157,7 @@ class VideoPanel(Frame):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
-        self.canvas = Canvas(self)
+        self.canvas = Canvas(self, bg="black")
 
     def OnPause(self):
         self.parent.player.pause()
@@ -202,19 +203,47 @@ class VideoPanel(Frame):
         self.parent.parent.control_bar.timeslider_last_val = dbl
         self.parent.parent.control_bar.timeslider.set(dbl)
 
-    def OnPrintTime(self):
-        cur_video_time = self.parent.player.get_time() * 0.001
-        print("%.3f" % cur_video_time)
+    #increase speed by 0.1 until a limit of 2.0
+    def OnSpeedUp(self):
+        if (self.parent.player.get_rate() == 0.25):
+            self.parent.player.set_rate(0.3)
+        elif (self.parent.player.get_rate() + 0.1 > 2.0):
+            self.parent.player.set_rate(2.0)
+        else:
+            self.parent.player.set_rate(self.parent.player.get_rate() + 0.1)
+        self.parent.TextOnScreen("Speed: {:0>.2f}".format(self.parent.player.get_rate()))
 
-    def OnFwd5sec(self):
-        nval = self.parent.parent.control_bar.scale_var.get()
-        mval = "%.0f" % (nval * 1000 + 1000)
-        self.parent.player.set_time(int(mval))
 
-    def OnBwd5sec(self):
-        nval = self.parent.parent.control_bar.scale_var.get()
-        mval = "%.0f" % (nval * 1000 - 1000)
-        self.parent.player.set_time(int(mval))
+    #decrease speed by 0.1 until a limit of 0.25
+    def OnSpeedDown(self):
+        if (self.parent.player.get_rate() - 0.1 < 0.25):
+            self.parent.player.set_rate(0.25)
+        else:
+            self.parent.player.set_rate(self.parent.player.get_rate() - 0.1)
+        self.parent.TextOnScreen("Speed: {:0>.2f}".format(self.parent.player.get_rate()))
+
+    #zoom in until a limit of 2x
+    def OnZoomIn(self):
+        if (self.parent.player.video_get_scale() == 0.0): #0 means fit automatically to the window
+            self.parent.player.video_set_scale(1)
+        elif (self.parent.player.video_get_scale() + 0.1 > 2):
+            self.parent.player.video_set_scale(2)
+        else:
+            self.parent.player.video_set_scale(self.parent.player.video_get_scale() + 0.1)
+
+    #zoom out until a limit of 1x
+    def OnZoomOut(self):
+        if (self.parent.player.video_get_scale() - 0.1 < 1):
+            self.parent.player.video_set_scale(0)
+        else:
+            self.parent.player.video_set_scale(self.parent.player.video_get_scale() - 0.1)
+
+    #enters and exits fullscreen mode
+    def OnFullScreen(self):
+        if not(self.parent.parent.parent.attributes("-fullscreen")):
+            self.parent.parent.parent.attributes('-fullscreen', True)
+        else:
+            self.parent.parent.parent.attributes('-fullscreen', False)
 
     def scale_sel(self, evt):
         cur_val = self.parent.parent.control_bar.scale_var.get()
@@ -242,8 +271,8 @@ class GridPanel(Frame):
         self.parent = parent
 
     def setGrid(self):
-        obj1 = self.parent.videopanel.canvas.create_text(50, 30, text='Click me one')
-        obj2 = self.parent.videopanel.canvas.create_text(50, 70, text='Click me two')
+        obj1 = self.parent.videopanel.canvas.create_text(50, 30, text='Click me one', fill="yellow")
+        obj2 = self.parent.videopanel.canvas.create_text(50, 70, text='Click me two', fill="yellow")
         self.parent.videopanel.canvas.bind('<Button-1>', self.onCanvasClick) #'<Double-1>' for double-click
         self.parent.videopanel.canvas.tag_bind(obj1, '<Button-1>', self.onObjectClick)
         self.parent.videopanel.canvas.tag_bind(obj2, '<Button-1>', self.onObjectClick)
@@ -261,6 +290,7 @@ class GridPanel(Frame):
         currtime = self.parent.player.get_time() * 0.001
         currbird = self.parent.parent.side_bar.identity.list_frame.listbox.curselection()
         currevent = self.parent.parent.side_bar.events.list_frame.listbox.curselection()
+        #clickxy = self.parent.player.video_get_cursor() #doesn't work - check this
         if (currbird != () and currevent!= () and self.parent.parent.side_bar.isRecording):
             print("Click: ({},{}), Closest Element: {}".format(event.x, event.y, (event.widget.find_closest(event.x, event.y))[0]))
             print("Time: {}, Bird: {}, Event: {}".format(round(currtime,3), currbird[0], currevent[0]))
@@ -282,6 +312,26 @@ class PlaybackPanel(Frame):
 
         self.videopanel.pack(fill=BOTH, expand=1)
 
+    #config of marquee strings (a.k.a messages on the video)
+    def TextOnScreen(self, text):
+        self.player.video_set_marquee_int(0, 1)  # enable marquee
+        self.player.video_set_marquee_int(6, 48)  # font size
+        self.player.video_set_marquee_int(7, 2000)  # timeout
+        self.player.video_set_marquee_string(1, text) #set text
+        self.player.video_get_marquee_string(1) #show text
+
+    def ShowLogoOnScreen(self, logopath):
+        self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.enable, 1)
+        self.parent.playback_panel.player.video_set_logo_string(vlc.VideoLogoOption.file, logopath)
+        # self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.opacity, 150)
+        # self.parent.playback_panel.player.video_set_logo_string(vlc.VideoLogoOption.logo_x, "10")
+        # self.parent.playback_panel.player.video_set_logo_string(vlc.VideoLogoOption.logo_y, "10")
+        # self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.position, 3)
+        # self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.repeat, 1)
+        self.parent.playback_panel.player.video_get_logo_int(1)
+
+    def RemoveLogoFromScreen(self):
+        self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.enable, 0)
 
 class SideBar(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -314,10 +364,12 @@ class SideBar(Frame):
             self.recordButton.config(relief=SUNKEN)
             self.isRecording = True
             self.recordButton.config(text="Record:\nOn")
+            self.parent.playback_panel.ShowLogoOnScreen("record-button2.png")
         else:
             self.recordButton.config(relief=RAISED)
             self.isRecording = False
             self.recordButton.config(text="Record:\nOff")
+            self.parent.playback_panel.RemoveLogoFromScreen()
 
 class MenuBar(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -415,6 +467,11 @@ class MainApplication(Frame):
         self.control_bar.grid(row=1, column=0, sticky=EW)
         self.playback_panel.grid(row=0, column=0, sticky=NSEW)
         self.status_bar.grid(row=2, columnspan=2, sticky=EW)
+
+    #API for jumping to a certain point in time - d_time(in seconds)
+    def JumpToTime(self, d_time):
+        self.control_bar.timeslider.set(d_time)
+
 
 
 if __name__ == "__main__":
