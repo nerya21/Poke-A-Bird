@@ -269,36 +269,71 @@ class GridPanel(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
+        self.eatingPoints = []
+        self.canvasFirstUse = False
+        self.canvasWH = (0,0)
 
     def setGrid(self):
-        obj1 = self.parent.videopanel.canvas.create_text(50, 30, text='Click me one', fill="yellow")
-        obj2 = self.parent.videopanel.canvas.create_text(50, 70, text='Click me two', fill="yellow")
+        numOfPoints = 0
+        for i in range(5):
+            for j in range(5):
+                numOfPoints += 1
+                obj = self.parent.videopanel.canvas.create_text(140+ 60*i,20 + 60*j, text='Point {}'.format(numOfPoints), fill="yellow")
+                if (j==0):
+                    self.eatingPoints.append([])
+                self.eatingPoints[i].append(obj)
         self.parent.videopanel.canvas.bind('<Button-1>', self.onCanvasClick) #'<Double-1>' for double-click
-        self.parent.videopanel.canvas.tag_bind(obj1, '<Button-1>', self.onObjectClick)
-        self.parent.videopanel.canvas.tag_bind(obj2, '<Button-1>', self.onObjectClick)
+        #self.parent.videopanel.canvas.bind('<Button-3>', self.OnCanvasClickRight) #only for testing
+        self.parent.videopanel.canvas.bind('<Configure>', self.OnCanvasSizeChange) #when frame grows
         #TODO: create rect from user clicks 4 points - pack objects on the rect instead of the canvas itself (2nd phase)
         #TODO: button "show grid" to show and hide the grid which is the rect (2nd phase)
-        #rec = self.parent.videopanel.canvas.create_rectangle(200, 200, 300, 300, fill="green")
-        #self.parent.videopanel.canvas.delete(rec)
-
         self.parent.videopanel.canvas.pack(fill=BOTH, expand=1)
 
     def onCanvasClick(self, event):
-        #print('Got canvas click', event.x, event.y, event.widget)
-        #print(event.widget.find_closest(event.x, event.y))
         #TODO: send the details of this click to EventManager
         currtime = self.parent.player.get_time() * 0.001
         currbird = self.parent.parent.side_bar.identity.list_frame.listbox.curselection()
         currevent = self.parent.parent.side_bar.events.list_frame.listbox.curselection()
-        #clickxy = self.parent.player.video_get_cursor() #doesn't work - check this
         if (currbird != () and currevent!= () and self.parent.parent.side_bar.isRecording):
             print("Click: ({},{}), Closest Element: {}".format(event.x, event.y, (event.widget.find_closest(event.x, event.y))[0]))
             print("Time: {}, Bird: {}, Event: {}".format(round(currtime,3), currbird[0], currevent[0]))
             print("")
 
-    def onObjectClick(self, event):
-        #print('Got object click', event.x, event.y, event.widget)
-        pass
+    #only for testing - not useful
+    def OnCanvasClickRight(self, event):
+        clickxy = self.parent.player.video_get_cursor() #doesn't work - check this (trying to prints cursor's coordinates in the video frame)
+        vwei, vhei = self.parent.player.video_get_size()
+        fhei = self.parent.winfo_height()
+        fwei = self.parent.winfo_width()
+        #print("PRINTXY: ({},{})".format(clickxy[0],clickxy[1]))
+        print("Video Wei, Hei: ({},{})".format(vwei, vhei)) #video size=1280x720
+        print("Frame Wei, Hei: ({},{})".format(fwei, fhei)) #current frame size (say): 1000x200
+        #need to calculate (x,y) click on frame to percent of (width, height) of video
+
+    #scaling the "eating points" when the frame size changes
+    def OnCanvasSizeChange(self, event):
+        if (not self.canvasFirstUse):
+            self.canvasFirstUse = True
+            self.canvasWH = (self.parent.videopanel.canvas.winfo_width(), self.parent.videopanel.canvas.winfo_height())
+            return
+        newWH = (event.width, event.height)
+        distWH = (newWH[0] - self.canvasWH[0] , newWH[1] - self.canvasWH[1])
+
+        #TODO: find a real scaling-to-frame algorithm!!! below is bullshit
+        if (distWH[0] == 0): #changes only in y axis
+            for i in range(5):
+                for j in range(5):
+                    self.parent.videopanel.canvas.move(self.eatingPoints[i][j], 0, distWH[1] // 2)
+        elif (distWH[1] == 0): #changes only in x axis
+            for i in range(5):
+                for j in range(5):
+                    self.parent.videopanel.canvas.move(self.eatingPoints[i][j], distWH[0] // 2, 0)
+        elif (distWH[0] > 0): #frame grows
+            self.parent.videopanel.canvas.scale("all",0,0,1.02,1.02)
+        else: #frame shrinks
+            self.parent.videopanel.canvas.scale("all", 0, 0, 0.98, 0.98)
+        self.canvasWH = newWH
+
 
 class PlaybackPanel(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -331,6 +366,7 @@ class PlaybackPanel(Frame):
         self.parent.playback_panel.player.video_get_logo_int(1)
 
     def RemoveLogoFromScreen(self):
+        self.parent.playback_panel.player.video_set_marquee_int(0, 0)
         self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.enable, 0)
 
 class SideBar(Frame):
