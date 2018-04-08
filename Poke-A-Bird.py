@@ -1,12 +1,193 @@
+import hashlib
+import json
+from shutil import copyfile
 from tkinter import *
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, asksaveasfilename
 import math
 import vlc
 import pathlib
 import os
 import platform
 import time
+import csv
 from threading import Thread, Event
+
+class ControlBlock:
+    events = []
+    current_media_hash= ''
+    cached = {}
+    default_cache = {'total_number_of_events': 0}
+
+    def dump_cache(self):
+        if control_block.current_media_hash != '':
+            cached_json = {}
+            if configuration.cache_file.is_file():
+                with open(configuration.cache_file, 'r') as fp:
+                    cached_json = json.load(fp)
+
+            cached_json[control_block.current_media_hash] = control_block.cached
+
+            with open(configuration.cache_file, 'w') as fp:
+                json.dump(cached_json, fp)
+
+            control_block.current_media_hash = ''
+
+        control_block.cached = control_block.default_cache
+
+    def load_cache(self):
+        if configuration.cache_file.is_file():
+            with open(configuration.cache_file, 'r') as fp:
+                cached_json = json.load(fp)
+                if control_block.current_media_hash in cached_json:
+                    control_block.cached = cached_json[control_block.current_media_hash]
+
+class Configuration:
+    config_file = pathlib.Path('config.json')
+    cache_file = pathlib.Path('cache.json')
+    config = {'last_export_path':'%USERPROFILE%',
+              'last_path':'%USERPROFILE%',
+              'identity_list': [],
+              'event_list': [],
+              'event_manager': {'size_x': 300,
+                                'size_y': 300,
+                                'pos_x': 300,
+                                'pos_y': 300,
+                                'number_of_events': 10},
+              'main_application': {'size_x': 300,
+                                   'size_y': 300,
+                                   'pos_x': 300,
+                                   'pos_y': 300}}
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        buffer = f.read(65536)
+        hash_md5.update(buffer)
+    return hash_md5.hexdigest()
+
+class EventManager(Toplevel):
+    class Control(Frame):
+        def __init__(self, parent, *args, **kwargs):
+            Frame.__init__(self, parent, *args, **kwargs)
+            self.parent = parent
+
+            self.export_icon = PhotoImage(file='./media/save_20.png')
+            self.export_button = Button(self, image=self.export_icon, command=self.parent.parent.on_export_events)
+            self.remove_icon = PhotoImage(file='./media/remove_record_20.png')
+            self.remove_button = Button(self, image=self.remove_icon, command=self.parent.delete_item)
+            self.goto_icon = PhotoImage(file='./media/goto_20.png')
+            self.goto_button = Button(self, image=self.goto_icon, command=self.parent.on_click)
+
+            self.export_button.pack(side=LEFT,padx=1)
+            Frame(self).pack(side=LEFT, fill=Y, padx=5)
+            self.goto_button.pack(side=LEFT,padx=1)
+            self.remove_button.pack(side=LEFT,padx=1)
+
+
+
+    class List(Frame):
+        def __init__(self, parent, *args, **kwargs):
+            Frame.__init__(self, parent, *args, **kwargs)
+            self.parent = parent
+
+            self.scrollbar = Scrollbar(self)
+            self.listbox = Listbox(self, yscrollcommand=self.scrollbar.set,
+                                   highlightthickness=0, exportselection=False, activestyle=NONE)
+            self.listbox.bind('<Double-1>', self.parent.on_click)
+            self.scrollbar.config(command=self.listbox.yview)
+
+            self.scrollbar.pack(side=RIGHT, fill=Y)
+            self.listbox.pack(side=LEFT, fill = BOTH, expand=TRUE)
+
+            self.refresh_events()
+
+        def refresh_events(self):
+            self.clear_events()
+            for item in control_block.events:
+                self.listbox.insert(END, item)
+
+        def clear_events(self):
+            self.listbox.delete(0, 'end')
+
+    class StatusBar(Frame):
+        def __init__(self, parent, *args, **kwargs):
+            Frame.__init__(self, parent, *args, **kwargs)
+            self.parent = parent
+
+            self.status_label = Label(self, text='Total number of events: ' + str(control_block.cached['total_number_of_events']), bd=2, relief=SUNKEN, anchor=W)
+            self.status_label.pack(side=BOTTOM, fill=X)
+
+        def display(self, event):
+            if event.widget == self.parent.control_bar.export_button:
+                self.status_label.config(text="Export events list")
+            elif event.widget == self.parent.control_bar.goto_button:
+                self.status_label.config(text="Go to selected event")
+            elif event.widget == self.parent.control_bar.remove_button:
+                self.status_label.config(text="Remove selected event")
+            else:
+                self.status_label.config(text='Total number of events: ' + str(control_block.cached['total_number_of_events']))
+
+        def refresh_default_status(self):
+            self.status_label.config(
+                text='Total number of events: ' + str(control_block.cached['total_number_of_events']))
+
+    def __init__(self, parent, *args, **kwargs):
+        Toplevel.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+        self.title('Event Manager')
+        self.minsize(300,300)
+
+        event_manager_config = configuration.config['event_manager']
+        self.geometry("%dx%d%+d%+d" % (event_manager_config['size_x'], event_manager_config['size_y'],
+                                       event_manager_config['pos_x'], event_manager_config['pos_y']))
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.parent.side_bar.upper_bar.eventManagerButton.config(relief=SUNKEN)
+
+        self.control_bar = self.Control(self, borderwidth=2)
+        self.list = self.List(self, borderwidth=2)
+        self.status_bar = self.StatusBar(self)
+
+        self.control_bar.pack(fill=BOTH)
+        self.list.pack(fill=BOTH, expand=TRUE)
+        self.status_bar.pack(fill=BOTH)
+
+        self.bind_all('<Enter>', self.status_bar.display, add=True)
+
+    def delete_item(self):
+        current_selection = self.list.listbox.curselection()
+        if current_selection != ():
+            control_block.events.pop(current_selection[0])
+            control_block.cached['total_number_of_events'] -= 1
+            self.list.listbox.delete(current_selection)
+
+    def on_click(self,event=None):
+        current_selection = self.list.listbox.curselection()
+        if current_selection != ():
+            self.parent.playback_panel.player.set_pause(1)
+            self.parent.playback_panel.player.set_time(int(self.list.listbox.get(current_selection[0])[0]) * 1000)  # expects milliseconds
+
+    def on_closing(self):
+        configuration.config['event_manager']['size_x'] = self.winfo_width()
+        configuration.config['event_manager']['size_y'] = self.winfo_height()
+        configuration.config['event_manager']['pos_x'] = self.winfo_x()
+        configuration.config['event_manager']['pos_y'] = self.winfo_y()
+        self.parent.side_bar.upper_bar.eventManagerButton.config(relief=RAISED)
+        self.bind_all('<Enter>', self.parent.status_bar.DisplayOnLabel)
+        self.destroy()
+        self.parent.event_manager = None
+
+    def on_media_stop(self):
+        self.list.clear_events()
+        self.status_bar.refresh_default_status()
+
+    def refresh_events(self):
+        self.list.refresh_events()
+        self.status_bar.refresh_default_status()
+
+    def on_media_open(self):
+        self.list.refresh_events()
+        self.status_bar.refresh_default_status()
+
 
 class ttkTimer(Thread):
     def __init__(self, callback, tick):
@@ -34,15 +215,19 @@ class ListBox(Frame):
             self.parent = parent
 
             self.title = Label(self, text=title, anchor=W)
-            self.new_button = Button(self, text='add', command=self.parent.add_item)
-            self.remove_button = Button(self, text='rem', command=self.parent.delete_item)
+
+            self.new_icon = PhotoImage(file='./media/add_record_25.png')
+            self.new_button = Button(self, image=self.new_icon, command=self.parent.add_item, relief=FLAT)
+
+            self.remove_icon = PhotoImage(file='./media/remove_record_25.png')
+            self.remove_button = Button(self, image=self.remove_icon, command=self.parent.delete_item, relief=FLAT)
 
             self.title.pack(fill=BOTH, side=LEFT, expand=TRUE)
-            self.new_button.pack(side=LEFT)
-            self.remove_button.pack(side=LEFT)
+            self.new_button.pack(side=LEFT, padx=1, pady=1)
+            self.remove_button.pack(side=LEFT, padx=1, pady=1)
 
     class List(Frame):
-        def __init__(self, parent, list, *args, **kwargs):
+        def __init__(self, parent, *args, **kwargs):
             Frame.__init__(self, parent, *args, **kwargs)
             self.parent = parent
 
@@ -53,14 +238,14 @@ class ListBox(Frame):
 
             self.scrollbar.pack(side=RIGHT, fill=Y)
             self.listbox.pack(side=LEFT)
-            for item in list:
+            for item in configuration.config[self.parent.attribute]:
                 self.listbox.insert(END, item)
 
     def delete_item(self):
-        current_selection = self.list_frame.listbox.curselection()
+        current_selection = self.list.listbox.curselection()
         if current_selection != ():
-            self.list.remove(self.list_frame.listbox.get(current_selection))
-            self.list_frame.listbox.delete(current_selection)
+            configuration.config[self.attribute].remove(self.list.listbox.get(current_selection))
+            self.list.listbox.delete(current_selection)
 
     def close_popup(self, window, clicked):
         clicked[0] = True
@@ -75,19 +260,20 @@ class ListBox(Frame):
         Button(window, text="OK", width=5, command=lambda: self.close_popup(window, clicked)).pack()
         window.wait_window()
         if (clicked[0] and entryStr.get() != ""):
-            self.list.append(entryStr.get())
-            self.list_frame.listbox.insert(END, entryStr.get())
+            configuration.config[self.attribute].append(entryStr.get())
+            self.list.listbox.insert(END, entryStr.get())
 
-    def __init__(self, parent, title, list, *args, **kwargs):
+    def __init__(self, parent, attribute, title, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         self.title = title
-        self.list = list
+        self.attribute = attribute
+
         self.title_frame = self.Title(self, title)
-        self.list_frame = self.List(self, list)
+        self.list = self.List(self)
 
         self.title_frame.pack(fill=BOTH, expand=TRUE)
-        self.list_frame.pack(side=BOTTOM)
+        self.list.pack(side=BOTTOM)
 
 
 class ControlBar(Frame):
@@ -102,43 +288,78 @@ class ControlBar(Frame):
         self.timer = ttkTimer(self.parent.playback_panel.videopanel.OnTimer, 1.0)
 
         #buttons and other widgets
-        self.pause = Button(self, text="||", command=self.parent.playback_panel.videopanel.OnPause, width=4)
-        self.play = Button(self, text=">", command=self.parent.playback_panel.videopanel.OnPlay, width=4)
-        self.stop = Button(self, text="#", command=self.parent.playback_panel.videopanel.OnStop, width=4)
-        self.speedup = Button(self, text=">>", command=self.parent.playback_panel.videopanel.OnSpeedUp, width=4)
-        self.speeddown = Button(self, text="<<", command=self.parent.playback_panel.videopanel.OnSpeedDown, width=4)
-        self.zoomin = Button(self, text=">$", width=4, command=self.parent.playback_panel.videopanel.OnZoomIn)
-        self.zoomout = Button(self, text="<$", width=4, command=self.parent.playback_panel.videopanel.OnZoomOut)
-        self.iforward = Button(self, text=">@", width=4)  # TODO: intellegent forward
-        self.ibackword = Button(self, text="<@", width=4)  # TODO: intellegent backward
-        self.fullsc = Button(self, text="^", width=4, command=self.parent.playback_panel.videopanel.OnFullScreen)
-        self.set_grid = Button(self, text="Set Grid", command=self.parent.playback_panel.videopanel.OnSetGrid)
+        self.pause_icon = PhotoImage(file='./media/pause.png')
+        self.pause = Button(self,image=self.pause_icon, command=self.parent.playback_panel.videopanel.OnPause)
+
+        self.play_icon = PhotoImage(file='./media/play.png')
+        self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.videopanel.OnPlay)
+
+        self.stop_icon = PhotoImage(file='./media/stop.png')
+        self.stop = Button(self, image=self.stop_icon, command=self.parent.playback_panel.videopanel.OnStop)
+
+        self.previous_frame_icon = PhotoImage(file='./media/previous_frame.png')
+        self.previous_frame = Button(self, image=self.previous_frame_icon, state=DISABLED)
+
+        self.next_frame_icon = PhotoImage(file='./media/next_frame.png')
+        self.next_frame = Button(self, image=self.next_frame_icon, state=DISABLED)
+
+        self.speedup_icon = PhotoImage(file='./media/speed_up.png')
+        self.speedup = Button(self, image=self.speedup_icon, command=self.parent.playback_panel.videopanel.OnSpeedUp)
+
+        self.speeddown_icon = PhotoImage(file='./media/speed_down.png')
+        self.speeddown = Button(self, image=self.speeddown_icon, command=self.parent.playback_panel.videopanel.OnSpeedDown)
+
+        self.zoom_in_icon = PhotoImage(file='./media/zoom_in.png')
+        self.zoomin = Button(self, image=self.zoom_in_icon, command=self.parent.playback_panel.videopanel.OnZoomIn)
+
+        self.zoom_out_icon = PhotoImage(file='./media/zoom_out.png')
+        self.zoomout = Button(self, image=self.zoom_out_icon, command=self.parent.playback_panel.videopanel.OnZoomOut)
+
+        self.int_forward_icon = PhotoImage(file='./media/int_forward.png')
+        self.iforward = Button(self, image=self.int_forward_icon, state=DISABLED)
+
+        self.int_backward_icon = PhotoImage(file='./media/int_backward.png')
+        self.ibackword = Button(self, image=self.int_backward_icon, state=DISABLED)
+
+        self.fullscreen_icon = PhotoImage(file='./media/fullscreen.png')
+        self.fullsc = Button(self, image=self.fullscreen_icon, command=self.parent.playback_panel.videopanel.OnFullScreen)
+
+        self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
+        self.set_grid = Button(self,image=self.show_grid_icon, command=self.parent.playback_panel.videopanel.OnSetGrid)
+
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.videopanel.volume_sel,
                                   from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.timeScaleFrame = Frame(self) #contains: time slider, time label (currentTime)
         self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.videopanel.scale_sel,
                                    from_=0, to=1000, orient=HORIZONTAL, length=100, resolution=0.001, showvalue=0)
-        self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00", bg="green", fg="white", width=10)
+        self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00", width=6)
         self.currentTimeLabel.pack(side=RIGHT)
         self.timeslider.pack(side=RIGHT, fill=X, expand=1)
 
         #packing
         self.timeScaleFrame.pack(side=TOP, fill=X, expand=1)
-        self.play.pack(side=LEFT, fill=Y)
-        self.pause.pack(side=LEFT, fill=Y)
-        self.stop.pack(side=LEFT, fill=Y)
-        self.volslider.pack(side=LEFT, expand=1)
-        self.set_grid.pack(side=LEFT, fill=Y)
-        self.speedup.pack(side=LEFT, fill=Y)
-        self.speeddown.pack(side=LEFT, fill=Y)
-        self.zoomin.pack(side=LEFT, fill=Y)
-        self.zoomout.pack(side=LEFT, fill=Y)
-        self.iforward.pack(side=LEFT, fill=Y)
-        self.ibackword.pack(side=LEFT, fill=Y)
-        self.fullsc.pack(side=LEFT, fill=Y)
+        self.play.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.pause.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.stop.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        Frame(self).pack(side=LEFT, fill=Y, padx=5)
+        self.speedup.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.speeddown.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.previous_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.next_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.zoomin.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.zoomout.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.ibackword.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.iforward.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        Frame(self).pack(side=LEFT, fill=Y, padx=5)
+
+        self.set_grid.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        Frame(self).pack(side=LEFT, fill=Y, padx=5)
+
+        self.fullsc.pack(side=LEFT, fill=Y, padx=1, pady=3)
+
+        self.volslider.pack(side=LEFT, expand=TRUE, anchor=E, padx=1, pady=3)
 
         #bind to status bar function
-        self.bind_all('<Enter>', self.parent.status_bar.DisplayOnLabel)
 
         #timer thread
         self.timer.start()
@@ -158,13 +379,53 @@ class VideoPanel(Frame):
         self.parent = parent
 
         self.canvas = Canvas(self, bg="black")
+        self.canvas.bind('<Button-1>', self.on_click)
+
+    def on_click(self, event):
+        if self.parent.parent.side_bar.upper_bar.recordButton.cget("relief") == RAISED:
+            return
+        identities_selection = self.parent.parent.side_bar.identity.list.listbox.curselection()
+        events_selection = self.parent.parent.side_bar.events.list.listbox.curselection()
+        if len(identities_selection) == 0 or len(events_selection) == 0:
+            return
+        identities_text = configuration.config['identity_list'][identities_selection[0]]
+        events_text = configuration.config['event_list'][events_selection[0]]
+
+        record = [self.parent.player.get_time() * 0.001, identities_text,events_text , event.x, event.y]
+        if len(control_block.events) >= configuration.config['event_manager']['number_of_events']:
+            old_record = control_block.events.pop(0)
+            if self.parent.parent.event_manager:
+                self.parent.parent.event_manager.list.listbox.delete(0)
+
+            with open(str(control_block.current_media_hash + '.csv'), "a") as events_file:
+                csv.writer(events_file, delimiter=',').writerow(old_record)
+
+        control_block.events.append(record)
+        control_block.cached['total_number_of_events'] += 1
+
+        if self.parent.parent.event_manager:
+            self.parent.parent.event_manager.refresh_events()
+
+        self.parent.TextOnScreen(identities_text + ' -> ' + events_text)
 
     def OnPause(self):
         self.parent.player.pause()
 
     def OnStop(self):
         self.parent.player.stop()
+        self.parent.player.set_media(None)
         self.parent.parent.control_bar.timeslider.set(0)
+
+
+        self.parent.parent.dump_events_to_file()
+
+        control_block.dump_cache()
+
+        if self.parent.parent.event_manager:
+            self.parent.parent.event_manager.on_media_stop()
+
+
+
 
     def OnPlay(self):
         if not self.parent.player.get_media():
@@ -175,17 +436,26 @@ class VideoPanel(Frame):
 
     def OnOpen(self):
         self.OnStop()
-        p = pathlib.Path(os.path.expanduser("~"))
+        p = pathlib.Path(os.path.expanduser(configuration.config['last_path']))
         fullname = askopenfilename(initialdir = p, title = "choose your file",filetypes = (("all files","*.*"),("mp4 files","*.mp4")))
         if os.path.isfile(fullname):
             dirname = os.path.dirname(fullname)
             filename = os.path.basename(fullname)
+            configuration.config['last_path'] = dirname
             media = self.parent.vlc_instance.media_new(str(os.path.join(dirname, filename)))
             self.parent.player.set_media(media)
             if platform.system() == 'Windows':
                 self.parent.player.set_hwnd(self.winfo_id())
-            self.OnPlay()
-            self.parent.parent.control_bar.volslider.set(50)
+
+            control_block.current_media_hash = md5(fullname)
+            control_block.load_cache()
+            if self.parent.parent.event_manager:
+                self.parent.parent.event_manager.on_media_open()
+
+            self.parent.player.play()
+            # self.parent.parent.control_bar.volslider.set(50)
+
+
 
     def OnSetGrid(self):
         self.parent.gridpanel.setGrid()
@@ -202,6 +472,7 @@ class VideoPanel(Frame):
         dbl = curtime * 0.001
         self.parent.parent.control_bar.timeslider_last_val = dbl
         self.parent.parent.control_bar.timeslider.set(dbl)
+
 
     #increase speed by 0.1 until a limit of 2.0
     def OnSpeedUp(self):
@@ -261,6 +532,7 @@ class VideoPanel(Frame):
             volume = 100
         if self.parent.player.audio_set_volume(volume) == -1:
             self.errorDialog("Failed to set volume")
+        self.parent.parent.status_bar.status_label.config(text="Volume: " + str(self.parent.parent.control_bar.volslider.get()) + '%')
 
     def errorDialog(self, errormessage):
         print(errormessage)
@@ -344,8 +616,8 @@ class PlaybackPanel(Frame):
         self.player = self.vlc_instance.media_player_new()
         self.videopanel = VideoPanel(self, bg="black")
         self.gridpanel = GridPanel(self)
-
         self.videopanel.pack(fill=BOTH, expand=1)
+
 
     #config of marquee strings (a.k.a messages on the video)
     def TextOnScreen(self, text):
@@ -370,42 +642,42 @@ class PlaybackPanel(Frame):
         self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.enable, 0)
 
 class SideBar(Frame):
+    class UpperBar(Frame):
+        def __init__(self, parent, *args, **kwargs):
+            Frame.__init__(self, parent, *args, **kwargs)
+            self.parent = parent
+
+            self.record_icon = PhotoImage(file='./media/record.png')
+            self.recordButton = Button(self, image=self.record_icon, command=self.parent.OnRecord)
+            self.recordButton.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
+
+            self.event_manager_icon = PhotoImage(file='./media/event_manager.png')
+            self.eventManagerButton = Button(self, image=self.event_manager_icon, command=self.parent.parent.on_event_manager_button_click)
+            self.eventManagerButton.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
+
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
 
-        self.recordButton = Button(self, text="Record:\nOff", command=self.OnRecord)
-        self.recordButton.grid(row=0, column=0, sticky=N+S+E+W)
-        self.isRecording = False
+        self.upper_bar = SideBar.UpperBar(self)
+        self.identity = ListBox(self, 'identity_list','Birds')
+        self.events = ListBox(self, 'event_list', 'Events')
 
-        self.eventManagerButton = Button(self, text="Event\nManager", command=self.OnEventManager)
-        self.eventManagerButton.grid(row=0, column=1, sticky=N+S+E+W)
-
-        self.identity = ListBox(self, 'Bird', ['bird_0', 'bird_1', 'bird_2'])
-        self.identity.grid(row=1, columnspan=2)
-
-        self.events = ListBox(self, 'Events', ['event_0', 'event_1', 'event_2'])
-        self.events.grid(row=2, columnspan=2)
-
-    def OnEventManager(self):
-        window = Toplevel(self.parent.parent)
-        labelframe = LabelFrame(window, text="Event Manager")
-        labelframe.pack(fill="both", expand="yes")
-        Label(labelframe, text="This is event manager").pack()
-        Button(window, text="OK", width=5, command=window.destroy).pack()
-        window.wait_window()
+        self.upper_bar.pack(fill=X)
+        self.identity.pack(pady=2)
+        self.events.pack(pady=2)
 
     def OnRecord(self):
-        if (self.recordButton.cget("relief") == RAISED):
-            self.recordButton.config(relief=SUNKEN)
-            self.isRecording = True
-            self.recordButton.config(text="Record:\nOn")
-            self.parent.playback_panel.ShowLogoOnScreen("record-button2.png")
+        if not self.parent.playback_panel.player.get_media():
+            return
+
+        if self.upper_bar.recordButton.cget("relief") == RAISED:
+            self.parent.playback_panel.videopanel.canvas.pack(fill=BOTH, expand=1)
+            self.upper_bar.recordButton.config(relief=SUNKEN)
+            # self.parent.playback_panel.ShowLogoOnScreen("record-button2.png")
         else:
-            self.recordButton.config(relief=RAISED)
-            self.isRecording = False
-            self.recordButton.config(text="Record:\nOff")
-            self.parent.playback_panel.RemoveLogoFromScreen()
+            self.upper_bar.recordButton.config(relief=RAISED)
+            # self.parent.playback_panel.RemoveLogoFromScreen()
 
 class MenuBar(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -425,8 +697,8 @@ class MenuBar(Frame):
         self.menu.add_cascade(label="Calibration", menu=calimenu)
 
         eventmenu = Menu(self.menu, tearoff=0)
-        eventmenu.add_command(label="Open event manager")
-        eventmenu.add_command(label="Export events")
+        eventmenu.add_command(label="Open event manager", command=parent.on_open_event_manager_menu_click)
+        eventmenu.add_command(label="Export events", command=parent.on_export_events)
         self.menu.add_cascade(label="Events", menu=eventmenu)
 
         settingsmenu = Menu(self.menu, tearoff=0)
@@ -447,56 +719,71 @@ class MenuBar(Frame):
         Button(window, text="OK", width=5, command=window.destroy).pack()
         window.wait_window()
 
-class StatusBar(Frame):
-    def __init__(self, parent, *args, **kwargs):
-        Frame.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
 
-        self.status_label = Label(self, text="Poke-A-Bird", bd=2, relief=SUNKEN, anchor=W)
-        self.status_label.pack(side=BOTTOM, fill=X)
-
-    def DisplayOnLabel(self, event):
-        if event.widget == self.parent.control_bar.play:
-            self.status_label.config(text="Play")
-        elif event.widget == self.parent.control_bar.pause:
-            self.status_label.config(text="Pause")
-        elif event.widget == self.parent.control_bar.stop:
-            self.status_label.config(text="Stop")
-        elif event.widget == self.parent.control_bar.speedup:
-            self.status_label.config(text="Speed Up")
-        elif event.widget == self.parent.control_bar.speeddown:
-            self.status_label.config(text="Speed Down")
-        elif event.widget == self.parent.control_bar.zoomin:
-            self.status_label.config(text="Zoom In")
-        elif event.widget == self.parent.control_bar.zoomout:
-            self.status_label.config(text="Zoom Out")
-        elif event.widget == self.parent.control_bar.iforward:
-            self.status_label.config(text="Intellegent Fast Forward")
-        elif event.widget == self.parent.control_bar.ibackword:
-            self.status_label.config(text="Intellegent Fast Backward")
-        elif event.widget == self.parent.control_bar.fullsc:
-            self.status_label.config(text="Full Screen")
-        elif event.widget == self.parent.control_bar.set_grid:
-            self.status_label.config(text="Set Grid")
-        elif event.widget == self.parent.control_bar.volslider:
-            self.status_label.config(text="Volume")
-        else:
-            self.status_label.config(text="Poke-A-Bird")
 
 class MainApplication(Frame):
+    class StatusBar(Frame):
+        def __init__(self, parent, *args, **kwargs):
+            Frame.__init__(self, parent, *args, **kwargs)
+            self.parent = parent
+
+            self.status_label = Label(self, text="Poke-A-Bird", bd=2, relief=SUNKEN, anchor=W)
+            self.status_label.pack(side=BOTTOM, fill=X)
+
+        def DisplayOnLabel(self, event):
+            if event.widget == self.parent.control_bar.play:
+                self.status_label.config(text="Play")
+            elif event.widget == self.parent.control_bar.pause:
+                self.status_label.config(text="Pause")
+            elif event.widget == self.parent.control_bar.stop:
+                self.status_label.config(text="Stop")
+            elif event.widget == self.parent.control_bar.speedup:
+                self.status_label.config(text="Speed Up")
+            elif event.widget == self.parent.control_bar.speeddown:
+                self.status_label.config(text="Speed Down")
+            elif event.widget == self.parent.control_bar.previous_frame:
+                self.status_label.config(text="Previous Frame")
+            elif event.widget == self.parent.control_bar.next_frame:
+                self.status_label.config(text="Next Frame")
+            elif event.widget == self.parent.control_bar.zoomin:
+                self.status_label.config(text="Zoom In")
+            elif event.widget == self.parent.control_bar.zoomout:
+                self.status_label.config(text="Zoom Out")
+            elif event.widget == self.parent.control_bar.iforward:
+                self.status_label.config(text="Intellegent Fast Forward")
+            elif event.widget == self.parent.control_bar.ibackword:
+                self.status_label.config(text="Intellegent Fast Backward")
+            elif event.widget == self.parent.control_bar.fullsc:
+                self.status_label.config(text="Full Screen")
+            elif event.widget == self.parent.control_bar.set_grid:
+                self.status_label.config(text="Set Grid")
+            elif event.widget == self.parent.control_bar.volslider:
+                self.status_label.config(text="Volume: " + str(self.parent.control_bar.volslider.get()) + '%')
+            elif event.widget == self.parent.side_bar.upper_bar.eventManagerButton:
+                self.status_label.config(text="Open Event Manager")
+            elif event.widget == self.parent.side_bar.upper_bar.recordButton:
+                self.status_label.config(text="Set Events Recording")
+            else:
+                self.status_label.config(text="Poke-A-Bird")
+
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
+        self.event_manager = None
+        self.parent.protocol("WM_DELETE_WINDOW", self.on_exit)
+        self.temp =0
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
+        main_application_config = configuration.config['main_application']
+        self.parent.geometry("%dx%d%+d%+d" % (main_application_config['size_x'], main_application_config['size_y'],
+                             main_application_config['pos_x'], main_application_config['pos_y']))
 
-        self.status_bar = StatusBar(self)
+        self.status_bar = self.StatusBar(self)
         self.side_bar = SideBar(self)
         self.playback_panel = PlaybackPanel(self, bg="black")
         self.menu_bar = MenuBar(self)
         self.control_bar = ControlBar(self, height=50)
-
 
         self.parent.config(menu=self.menu_bar.menu)
         self.side_bar.grid(row=0, column=1, rowspan=2, sticky=NS)
@@ -504,18 +791,63 @@ class MainApplication(Frame):
         self.playback_panel.grid(row=0, column=0, sticky=NSEW)
         self.status_bar.grid(row=2, columnspan=2, sticky=EW)
 
+        self.bind_all('<Enter>', self.status_bar.DisplayOnLabel)
+
     #API for jumping to a certain point in time - d_time(in seconds)
     def JumpToTime(self, d_time):
         self.control_bar.timeslider.set(d_time)
 
+    def on_event_manager_button_click(self):
+        if not self.event_manager:
+            self.event_manager = EventManager(self, takefocus=True)
+        else:
+            self.event_manager.on_closing()
 
+    def on_open_event_manager_menu_click(self):
+        if not self.event_manager:
+            self.event_manager = EventManager(self, takefocus=True)
+
+    def on_export_events(self):
+        p = pathlib.Path(os.path.expanduser(configuration.config['last_export_path']))
+        fullname = asksaveasfilename(initialdir = p, title = "Export As",filetypes = (("CSV file (*.csv)","*.csv"),("All files (*)","*.*")))
+        if fullname == '':
+            return
+        export_path = pathlib.Path(fullname)
+        if pathlib.Path(control_block.current_media_hash + '.csv').is_file():
+            copyfile(str(control_block.current_media_hash + '.csv'), fullname)
+        with open(export_path, "a") as events_file:
+            csv.writer(events_file, delimiter=',').writerows(control_block.events)
+
+        configuration.config['last_export_path'] = os.path.dirname(fullname)
+
+    def on_exit(self):
+        self.playback_panel.videopanel.OnStop()
+        with open(configuration.config_file, 'w') as fp:
+            json.dump(configuration.config, fp)
+        self.parent.destroy()
+
+    def dump_events_to_file(self):
+        for item in control_block.events:
+            with open(str(control_block.current_media_hash + '.csv'), "a") as events_file:
+                csv.writer(events_file, delimiter=',').writerow(item)
+
+        control_block.events.clear()
 
 if __name__ == "__main__":
     root = Tk()
-    root.minsize(width=640, height=360)
+    root.minsize(width=840, height=460)
     root.title("Poke-A-Bird")
+    root.iconbitmap('./media/bird.ico')
     #root.attributes('-fullscreen', True) #force fullscreen
     #root.state('zoomed') #force zoom
+
+    configuration = Configuration()
+    control_block = ControlBlock()
+
+    if configuration.config_file.is_file():
+        with open(configuration.config_file, 'r') as fp:
+            configuration.config = json.load(fp)
+    control_block.cached = control_block.default_cache
 
     mainapp = MainApplication(root)
     mainapp.pack(side="top", fill="both", expand=True)
