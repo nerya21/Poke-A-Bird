@@ -356,7 +356,7 @@ class ControlBar(Frame):
         Frame(self).pack(side=LEFT, fill=Y, padx=5)
 
         self.fullsc.pack(side=LEFT, fill=Y, padx=1, pady=3)
-
+        Frame(self).pack(side=LEFT, fill=Y, padx=5)
         self.volslider.pack(side=LEFT, expand=TRUE, anchor=E, padx=1, pady=3)
 
         #bind to status bar function
@@ -564,9 +564,9 @@ class GridPanel(Frame):
     def onCanvasClick(self, event):
         #TODO: send the details of this click to EventManager
         currtime = self.parent.player.get_time() * 0.001
-        currbird = self.parent.parent.side_bar.identity.list_frame.listbox.curselection()
-        currevent = self.parent.parent.side_bar.events.list_frame.listbox.curselection()
-        if (currbird != () and currevent!= () and self.parent.parent.side_bar.isRecording):
+        currbird = self.parent.parent.side_bar.identity.list.listbox.curselection()
+        currevent = self.parent.parent.side_bar.events.list.listbox.curselection()
+        if (currbird != () and currevent!= ()):
             print("Click: ({},{}), Closest Element: {}".format(event.x, event.y, (event.widget.find_closest(event.x, event.y))[0]))
             print("Time: {}, Bird: {}, Event: {}".format(round(currtime,3), currbird[0], currevent[0]))
             print("")
