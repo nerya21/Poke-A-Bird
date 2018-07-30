@@ -249,19 +249,25 @@ class ListBox(Frame):
 
     def close_popup(self, window, clicked):
         clicked[0] = True
+        window.grab_release()
         window.destroy()
 
     def add_item(self):
-        window = Toplevel(self.parent.parent.parent)
+        window = Toplevel(self.parent.parent.parent, borderwidth=5)
+        window.grab_set()
+        window.title('Add '+ self.title)
+        window.resizable(0, 0)
         entryStr = StringVar()
-        Label(window, text="Add "+self.title).pack(side=LEFT)
-        Entry(window, textvariable=entryStr, bd=5).pack()
+        Label(window, text='Name: ').grid(row=0, column=0)
+        Entry(window, textvariable=entryStr, width=20).grid(row=0, column=1)
         clicked = [False]
-        Button(window, text="OK", width=5, command=lambda: self.close_popup(window, clicked)).pack()
+        Button(window, text="Add", width=5, command=lambda: self.close_popup(window, clicked)).grid(row=1, column=0, columnspan=2, pady=2)
+        # window.bind('<Enter>', self.close_popup(window, clicked))
         window.wait_window()
         if (clicked[0] and entryStr.get() != ""):
             configuration.config[self.attribute].append(entryStr.get())
             self.list.listbox.insert(END, entryStr.get())
+
 
     def __init__(self, parent, attribute, title, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
@@ -289,47 +295,33 @@ class ControlBar(Frame):
 
         #buttons and other widgets
         self.pause_icon = PhotoImage(file='./media/pause.png')
-        self.pause = Button(self,image=self.pause_icon, command=self.parent.playback_panel.videopanel.OnPause)
-
+        self.pause = Button(self,image=self.pause_icon, command=self.parent.playback_panel.videopanel.on_pause)
         self.play_icon = PhotoImage(file='./media/play.png')
-        self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.videopanel.OnPlay)
-
+        self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.videopanel.on_play)
         self.stop_icon = PhotoImage(file='./media/stop.png')
-        self.stop = Button(self, image=self.stop_icon, command=self.parent.playback_panel.videopanel.OnStop)
-
+        self.stop = Button(self, image=self.stop_icon, command=self.parent.playback_panel.videopanel.on_stop)
         self.previous_frame_icon = PhotoImage(file='./media/previous_frame.png')
         self.previous_frame = Button(self, image=self.previous_frame_icon, state=DISABLED)
-
         self.next_frame_icon = PhotoImage(file='./media/next_frame.png')
         self.next_frame = Button(self, image=self.next_frame_icon, state=DISABLED)
-
         self.speedup_icon = PhotoImage(file='./media/speed_up.png')
         self.speedup = Button(self, image=self.speedup_icon, command=self.parent.playback_panel.videopanel.OnSpeedUp)
-
         self.speeddown_icon = PhotoImage(file='./media/speed_down.png')
         self.speeddown = Button(self, image=self.speeddown_icon, command=self.parent.playback_panel.videopanel.OnSpeedDown)
-
         self.zoom_in_icon = PhotoImage(file='./media/zoom_in.png')
         self.zoomin = Button(self, image=self.zoom_in_icon, command=self.parent.playback_panel.videopanel.OnZoomIn)
-
         self.zoom_out_icon = PhotoImage(file='./media/zoom_out.png')
         self.zoomout = Button(self, image=self.zoom_out_icon, command=self.parent.playback_panel.videopanel.OnZoomOut)
-
         self.int_forward_icon = PhotoImage(file='./media/int_forward.png')
         self.iforward = Button(self, image=self.int_forward_icon, state=DISABLED)
-
         self.int_backward_icon = PhotoImage(file='./media/int_backward.png')
         self.ibackword = Button(self, image=self.int_backward_icon, state=DISABLED)
-
         self.fullscreen_icon = PhotoImage(file='./media/fullscreen.png')
         self.fullsc = Button(self, image=self.fullscreen_icon, command=self.parent.playback_panel.videopanel.OnFullScreen)
-
         self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
-        self.set_grid = Button(self,image=self.show_grid_icon, command=self.parent.playback_panel.videopanel.OnSetGrid)
-
-        self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.videopanel.volume_sel,
-                                  from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
-        self.timeScaleFrame = Frame(self) #contains: time slider, time label (currentTime)
+        self.set_grid = Button(self,image=self.show_grid_icon, command=self.parent.playback_panel.videopanel.OnSetGrid, state=DISABLED)
+        self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.videopanel.volume_sel, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
+        self.timeScaleFrame = Frame(self)
         self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.videopanel.scale_sel,
                                    from_=0, to=1000, orient=HORIZONTAL, length=100, resolution=0.001, showvalue=0)
         self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00", width=6)
@@ -359,9 +351,6 @@ class ControlBar(Frame):
         Frame(self).pack(side=LEFT, fill=Y, padx=5)
         self.volslider.pack(side=LEFT, expand=TRUE, anchor=E, padx=1, pady=3)
 
-        #bind to status bar function
-
-        #timer thread
         self.timer.start()
         self.parent.parent.update()
 
@@ -372,6 +361,41 @@ class ControlBar(Frame):
         MM = nval // 60
         SS = nval % 60
         self.currentTimeLabel.config(text="{:>02d}:{:>02d}:{:>02d}".format(HH,MM,SS))
+
+class Description(Frame):
+
+    class Title(Frame):
+        def __init__(self, parent, title, *args, **kwargs):
+            Frame.__init__(self, parent, *args, **kwargs)
+            self.parent = parent
+
+            self.title = Label(self, text=title, anchor=W)
+
+            self.remove_icon = PhotoImage(file='./media/remove_record_25.png')
+            self.remove_button = Button(self, image=self.remove_icon, command=self.parent.clear, relief=FLAT)
+
+            self.title.pack(fill=BOTH, side=LEFT, expand=TRUE)
+            self.remove_button.pack(side=LEFT, padx=1, pady=1)
+
+
+    def __init__(self, parent, *args, **kwargs):
+        Frame.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+
+        self.entry_str = StringVar()
+        self.title = Description.Title(self, 'Description')
+        self.entry = Entry(self, textvariable=self.entry_str)
+
+        self.title.pack(side=TOP, fill=X)
+        self.entry.pack(fill=X)
+
+    def clear(self):
+        self.entry_str.set('')
+
+    def get_and_clear(self):
+        description = self.entry_str.get()
+        self.clear()
+        return description
 
 class VideoPanel(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -391,7 +415,7 @@ class VideoPanel(Frame):
         identities_text = configuration.config['identity_list'][identities_selection[0]]
         events_text = configuration.config['event_list'][events_selection[0]]
 
-        record = [self.parent.player.get_time() * 0.001, identities_text,events_text , event.x, event.y]
+        record = [self.parent.player.get_time() * 0.001, identities_text,events_text , event.x, event.y, self.parent.parent.side_bar.description.get_and_clear()]
         if len(control_block.events) >= configuration.config['event_manager']['number_of_events']:
             old_record = control_block.events.pop(0)
             if self.parent.parent.event_manager:
@@ -408,10 +432,10 @@ class VideoPanel(Frame):
 
         self.parent.TextOnScreen(identities_text + ' -> ' + events_text)
 
-    def OnPause(self):
+    def on_pause(self):
         self.parent.player.pause()
 
-    def OnStop(self):
+    def on_stop(self):
         self.parent.player.stop()
         self.parent.player.set_media(None)
         self.parent.parent.control_bar.timeslider.set(0)
@@ -427,15 +451,15 @@ class VideoPanel(Frame):
 
 
 
-    def OnPlay(self):
+    def on_play(self):
         if not self.parent.player.get_media():
-            self.OnOpen()
+            self.on_open()
         else:
             if self.parent.player.play() == -1:
                 self.parent.errorDialog("Unable to play.")
 
-    def OnOpen(self):
-        self.OnStop()
+    def on_open(self):
+        self.on_stop()
         p = pathlib.Path(os.path.expanduser(configuration.config['last_path']))
         fullname = askopenfilename(initialdir = p, title = "choose your file",filetypes = (("all files","*.*"),("mp4 files","*.mp4")))
         if os.path.isfile(fullname):
@@ -453,7 +477,6 @@ class VideoPanel(Frame):
                 self.parent.parent.event_manager.on_media_open()
 
             self.parent.player.play()
-            # self.parent.parent.control_bar.volslider.set(50)
 
 
 
@@ -606,18 +629,23 @@ class GridPanel(Frame):
             self.parent.videopanel.canvas.scale("all", 0, 0, 0.98, 0.98)
         self.canvasWH = newWH
 
-
+def cb( event):
+    print ("cb:", event, event.u)
 class PlaybackPanel(Frame):
+
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-
+        
         self.vlc_instance = vlc.Instance()
         self.player = self.vlc_instance.media_player_new()
+
         self.videopanel = VideoPanel(self, bg="black")
         self.gridpanel = GridPanel(self)
         self.videopanel.pack(fill=BOTH, expand=1)
-
+        self.vlc_events = self.player.event_manager()
+        self.vlc_events.event_attach(vlc.EventType.MediaPlayerEndReached, cb)
+    
 
     #config of marquee strings (a.k.a messages on the video)
     def TextOnScreen(self, text):
@@ -660,12 +688,14 @@ class SideBar(Frame):
         self.parent = parent
 
         self.upper_bar = SideBar.UpperBar(self)
-        self.identity = ListBox(self, 'identity_list','Birds')
-        self.events = ListBox(self, 'event_list', 'Events')
+        self.identity = ListBox(self, 'identity_list','Bird')
+        self.events = ListBox(self, 'event_list', 'Event')
+        self.description = Description(self)
 
         self.upper_bar.pack(fill=X)
         self.identity.pack(pady=2)
         self.events.pack(pady=2)
+        self.description.pack(fill=X)
 
     def OnRecord(self):
         if not self.parent.playback_panel.player.get_media():
@@ -674,10 +704,8 @@ class SideBar(Frame):
         if self.upper_bar.recordButton.cget("relief") == RAISED:
             self.parent.playback_panel.videopanel.canvas.pack(fill=BOTH, expand=1)
             self.upper_bar.recordButton.config(relief=SUNKEN)
-            # self.parent.playback_panel.ShowLogoOnScreen("record-button2.png")
         else:
             self.upper_bar.recordButton.config(relief=RAISED)
-            # self.parent.playback_panel.RemoveLogoFromScreen()
 
 class MenuBar(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -687,7 +715,7 @@ class MenuBar(Frame):
         self.menu = Menu(self)
 
         filemenu = Menu(self.menu, tearoff=0)
-        filemenu.add_command(label="Open", command=self.parent.playback_panel.videopanel.OnOpen)
+        filemenu.add_command(label="Open", command=self.parent.playback_panel.videopanel.on_open)
         filemenu.add_command(label="Exit", command=self.parent.parent.quit)
         self.menu.add_cascade(label="File", menu=filemenu)
 
@@ -750,9 +778,9 @@ class MainApplication(Frame):
             elif event.widget == self.parent.control_bar.zoomout:
                 self.status_label.config(text="Zoom Out")
             elif event.widget == self.parent.control_bar.iforward:
-                self.status_label.config(text="Intellegent Fast Forward")
+                self.status_label.config(text="Intelligent Fast Forward")
             elif event.widget == self.parent.control_bar.ibackword:
-                self.status_label.config(text="Intellegent Fast Backward")
+                self.status_label.config(text="Intelligent Fast Backward")
             elif event.widget == self.parent.control_bar.fullsc:
                 self.status_label.config(text="Full Screen")
             elif event.widget == self.parent.control_bar.set_grid:
@@ -793,7 +821,6 @@ class MainApplication(Frame):
 
         self.bind_all('<Enter>', self.status_bar.DisplayOnLabel)
 
-    #API for jumping to a certain point in time - d_time(in seconds)
     def JumpToTime(self, d_time):
         self.control_bar.timeslider.set(d_time)
 
@@ -821,7 +848,7 @@ class MainApplication(Frame):
         configuration.config['last_export_path'] = os.path.dirname(fullname)
 
     def on_exit(self):
-        self.playback_panel.videopanel.OnStop()
+        self.playback_panel.videopanel.on_stop()
         with open(configuration.config_file, 'w') as fp:
             json.dump(configuration.config, fp)
         self.parent.destroy()
