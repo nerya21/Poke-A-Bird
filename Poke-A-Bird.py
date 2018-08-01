@@ -103,8 +103,8 @@ class EventManager(Toplevel):
 
         def refresh_events(self):
             self.clear_events()
-            for item in control_block.events:
-                self.listbox.insert(END, item)
+            for event in control_block.events:
+                self.listbox.insert(END, self.parent.parent.translate_to_friendly_record(event))
 
         def clear_events(self):
             self.listbox.delete(0, 'end')
@@ -189,6 +189,7 @@ class EventManager(Toplevel):
         self.status_bar.refresh_default_status()
 
 
+
 class ttkTimer(Thread):
     def __init__(self, callback, tick):
         Thread.__init__(self)
@@ -268,6 +269,11 @@ class ListBox(Frame):
             configuration.config[self.attribute].append(entryStr.get())
             self.list.listbox.insert(END, entryStr.get())
 
+    def get_selected_items(self):
+        items = []
+        for item in self.list.listbox.curselection():
+            items.append(self.list.listbox.get(item))
+        return items
 
     def __init__(self, parent, attribute, title, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
@@ -408,29 +414,12 @@ class VideoPanel(Frame):
     def on_click(self, event):
         if self.parent.parent.side_bar.upper_bar.recordButton.cget("relief") == RAISED:
             return
-        identities_selection = self.parent.parent.side_bar.identity.list.listbox.curselection()
-        events_selection = self.parent.parent.side_bar.events.list.listbox.curselection()
-        if len(identities_selection) == 0 or len(events_selection) == 0:
+        identities = self.parent.parent.side_bar.identity.get_selected_items()
+        events = self.parent.parent.side_bar.events.get_selected_items()
+        if len(identities) == 0 or len(events) == 0:
             return
-        identities_text = configuration.config['identity_list'][identities_selection[0]]
-        events_text = configuration.config['event_list'][events_selection[0]]
 
-        record = [self.parent.player.get_time() * 0.001, identities_text,events_text , event.x, event.y, self.parent.parent.side_bar.description.get_and_clear()]
-        if len(control_block.events) >= configuration.config['event_manager']['number_of_events']:
-            old_record = control_block.events.pop(0)
-            if self.parent.parent.event_manager:
-                self.parent.parent.event_manager.list.listbox.delete(0)
-
-            with open(str(control_block.current_media_hash + '.csv'), "a") as events_file:
-                csv.writer(events_file, delimiter=',').writerow(old_record)
-
-        control_block.events.append(record)
-        control_block.cached['total_number_of_events'] += 1
-
-        if self.parent.parent.event_manager:
-            self.parent.parent.event_manager.refresh_events()
-
-        self.parent.TextOnScreen(identities_text + ' -> ' + events_text)
+        self.parent.parent.add_item(self.parent.player.get_time(),self.parent.player.get_time(),identities,events,self.parent.parent.side_bar.description.get_and_clear(), event.x, event.y,'')
 
     def on_pause(self):
         self.parent.player.pause()
@@ -578,7 +567,7 @@ class GridPanel(Frame):
                     self.eatingPoints.append([])
                 self.eatingPoints[i].append(obj)
         self.parent.videopanel.canvas.bind('<Button-1>', self.onCanvasClick) #'<Double-1>' for double-click
-        #self.parent.videopanel.canvas.bind('<Button-3>', self.OnCanvasClickRight) #only for testing
+        self.parent.videopanel.canvas.bind('<Button-3>', self.OnCanvasClickRight) #only for testing
         self.parent.videopanel.canvas.bind('<Configure>', self.OnCanvasSizeChange) #when frame grows
         #TODO: create rect from user clicks 4 points - pack objects on the rect instead of the canvas itself (2nd phase)
         #TODO: button "show grid" to show and hide the grid which is the rect (2nd phase)
@@ -600,7 +589,7 @@ class GridPanel(Frame):
         vwei, vhei = self.parent.player.video_get_size()
         fhei = self.parent.winfo_height()
         fwei = self.parent.winfo_width()
-        #print("PRINTXY: ({},{})".format(clickxy[0],clickxy[1]))
+        print("PRINTXY: ({},{})".format(clickxy[0],clickxy[1]))
         print("Video Wei, Hei: ({},{})".format(vwei, vhei)) #video size=1280x720
         print("Frame Wei, Hei: ({},{})".format(fwei, fhei)) #current frame size (say): 1000x200
         #need to calculate (x,y) click on frame to percent of (width, height) of video
@@ -629,8 +618,6 @@ class GridPanel(Frame):
             self.parent.videopanel.canvas.scale("all", 0, 0, 0.98, 0.98)
         self.canvasWH = newWH
 
-def cb( event):
-    print ("cb:", event, event.u)
 class PlaybackPanel(Frame):
 
     def __init__(self, parent, *args, **kwargs):
@@ -643,8 +630,6 @@ class PlaybackPanel(Frame):
         self.videopanel = VideoPanel(self, bg="black")
         self.gridpanel = GridPanel(self)
         self.videopanel.pack(fill=BOTH, expand=1)
-        self.vlc_events = self.player.event_manager()
-        self.vlc_events.event_attach(vlc.EventType.MediaPlayerEndReached, cb)
     
 
     #config of marquee strings (a.k.a messages on the video)
@@ -823,6 +808,37 @@ class MainApplication(Frame):
 
     def JumpToTime(self, d_time):
         self.control_bar.timeslider.set(d_time)
+
+    def translate_timestamp_to_clock(self, cur_val):
+        mval = "%.0f" % (cur_val)
+        nval = (int(mval)) // 1000 #in seconds
+        HH = nval // 3600
+        MM = nval // 60
+        SS = nval % 60
+        return "{:>02d}:{:>02d}:{:>02d}".format(HH,MM,SS)
+
+    def translate_to_friendly_record(self, record):
+        friendly_record = list.copy(record)
+        friendly_record[0] = self.translate_timestamp_to_clock(friendly_record[0])
+        friendly_record[1] = self.translate_timestamp_to_clock(friendly_record[1])
+        return friendly_record 
+
+    def add_item(self, video_timestamp, session_timestamp, identities,events ,description, pos_x, pos_y, attribute):
+        record = [video_timestamp, session_timestamp, identities,events,description , pos_x, pos_y, attribute ]
+        if len(control_block.events) >= configuration.config['event_manager']['number_of_events']:
+            old_record = control_block.events.pop(0)
+            with open(str(control_block.current_media_hash + '.csv'), "a") as events_file:
+                csv.writer(events_file, delimiter=',').writerow(self.translate_to_friendly_record(old_record))
+            if self.event_manager:
+                self.event_manager.refresh_events()
+
+        control_block.events.append(record)
+        control_block.cached['total_number_of_events'] += 1
+
+        if self.event_manager:
+            self.event_manager.refresh_events()
+
+        self.playback_panel.TextOnScreen(str(identities) + ' -> ' + str(events))
 
     def on_event_manager_button_click(self):
         if not self.event_manager:
