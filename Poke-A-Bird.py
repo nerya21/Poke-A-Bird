@@ -11,12 +11,13 @@ import platform
 import time
 import csv
 from threading import Thread, Event
+import tkinter.ttk as ttk
 
 class ControlBlock:
     events = []
     current_media_hash= ''
     cached = {}
-    default_cache = {'total_number_of_events': 0}
+    default_cache = {'total_number_of_events': 0, 'session_timestamp':0}
 
     def dump_cache(self):
         if control_block.current_media_hash != '':
@@ -90,13 +91,32 @@ class EventManager(Toplevel):
             Frame.__init__(self, parent, *args, **kwargs)
             self.parent = parent
 
-            self.scrollbar = Scrollbar(self)
-            self.listbox = Listbox(self, yscrollcommand=self.scrollbar.set,
-                                   highlightthickness=0, exportselection=False, activestyle=NONE)
+            self.listbox = ttk.Treeview(self, height=1)
+            self.y_scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.listbox.yview)
+            # self.x_scrollbar = ttk.Scrollbar(self, orient="horizontal", command=self.listbox.xview)
             self.listbox.bind('<Double-1>', self.parent.on_click)
-            self.scrollbar.config(command=self.listbox.yview)
 
-            self.scrollbar.pack(side=RIGHT, fill=Y)
+            self.listbox["columns"]=('video_timestamp', 'session_timestamp', 'identities','events','description' , 'pos_x', 'pos_y', 'attribute')
+            self.listbox['show'] = 'headings'
+            self.listbox.column("video_timestamp", minwidth=90, width=90, anchor='w')
+            self.listbox.column("session_timestamp", minwidth=150, width=150, anchor='w')
+            self.listbox.column("identities", minwidth=100, width=100, anchor='w')
+            self.listbox.column("events", minwidth=100, width=100, anchor='w')
+            self.listbox.column("description", minwidth=100, width=100, anchor='w')
+            self.listbox.column("pos_x", minwidth=70, width=70, anchor='w')
+            self.listbox.column("pos_y", minwidth=50, width=50, anchor='w')
+            self.listbox.column("attribute", minwidth=100, width=100, anchor='w')
+            self.listbox.heading("video_timestamp", text='Timestamp', anchor='w')
+            self.listbox.heading("session_timestamp", text='Session Timestamp', anchor='w')
+            self.listbox.heading("identities", text='Birds', anchor='w')
+            self.listbox.heading("events", text='Events', anchor='w')
+            self.listbox.heading("description", text='Description', anchor='w')
+            self.listbox.heading("pos_x", text='Column', anchor='w')
+            self.listbox.heading("pos_y", text='Row', anchor='w')
+            self.listbox.heading("attribute", text='Attribute', anchor='w')
+
+            self.y_scrollbar.pack(side=RIGHT, fill=Y)
+            # self.x_scrollbar.pack(side=BOTTOM, fill=X)
             self.listbox.pack(side=LEFT, fill = BOTH, expand=TRUE)
 
             self.refresh_events()
@@ -104,10 +124,10 @@ class EventManager(Toplevel):
         def refresh_events(self):
             self.clear_events()
             for event in control_block.events:
-                self.listbox.insert(END, self.parent.parent.translate_to_friendly_record(event))
+                self.listbox.insert('',END, values=self.parent.parent.translate_to_friendly_record(event))
 
         def clear_events(self):
-            self.listbox.delete(0, 'end')
+            self.listbox.delete(*self.listbox.get_children())
 
     class StatusBar(Frame):
         def __init__(self, parent, *args, **kwargs):
@@ -135,7 +155,7 @@ class EventManager(Toplevel):
         Toplevel.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         self.title('Event Manager')
-        self.minsize(300,300)
+        self.minsize(790,250)
 
         event_manager_config = configuration.config['event_manager']
         self.geometry("%dx%d%+d%+d" % (event_manager_config['size_x'], event_manager_config['size_y'],
@@ -154,17 +174,17 @@ class EventManager(Toplevel):
         self.bind_all('<Enter>', self.status_bar.display, add=True)
 
     def delete_item(self):
-        current_selection = self.list.listbox.curselection()
+        current_selection = self.list.listbox.focus()
         if current_selection != ():
             control_block.events.pop(current_selection[0])
             control_block.cached['total_number_of_events'] -= 1
             self.list.listbox.delete(current_selection)
 
     def on_click(self,event=None):
-        current_selection = self.list.listbox.curselection()
+        current_selection = self.list.listbox.identify_row(event.y)
         if current_selection != ():
             self.parent.playback_panel.player.set_pause(1)
-            self.parent.playback_panel.player.set_time(int(self.list.listbox.get(current_selection[0])[0]) * 1000)  # expects milliseconds
+            self.parent.playback_panel.player.set_time(int(control_block.events[current_selection][0]))
 
     def on_closing(self):
         configuration.config['event_manager']['size_x'] = self.winfo_width()
@@ -673,14 +693,19 @@ class SideBar(Frame):
         self.parent = parent
 
         self.upper_bar = SideBar.UpperBar(self)
+        self.upper_bar_spacer = ttk.Separator(self, orient=HORIZONTAL)
         self.identity = ListBox(self, 'identity_list','Bird')
         self.events = ListBox(self, 'event_list', 'Event')
         self.description = Description(self)
+        self.description_spacer = ttk.Separator(self, orient=HORIZONTAL)
 
         self.upper_bar.pack(fill=X)
+        self.upper_bar_spacer.pack(fill=X,pady=5)
         self.identity.pack(pady=2)
         self.events.pack(pady=2)
         self.description.pack(fill=X)
+        self.description_spacer.pack(fill=X,pady=5)
+
 
     def OnRecord(self):
         if not self.parent.playback_panel.player.get_media():
