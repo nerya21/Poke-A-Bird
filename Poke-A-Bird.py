@@ -12,6 +12,7 @@ import time
 import csv
 from threading import Thread, Event
 import tkinter.ttk as ttk
+import datetime
 
 class ControlBlock:
     events = []
@@ -173,16 +174,23 @@ class EventManager(Toplevel):
 
         self.bind_all('<Enter>', self.status_bar.display, add=True)
 
+    def get_selected_event_index(self):
+        iid = self.list.listbox.focus()
+        if iid == '':
+            return -1
+        else:
+            return self.list.listbox.index(iid) 
+
     def delete_item(self):
-        current_selection = self.list.listbox.focus()
-        if current_selection != ():
-            control_block.events.pop(current_selection[0])
+        current_selection = self.get_selected_event_index()
+        if current_selection != -1:
+            control_block.events.pop(current_selection)
             control_block.cached['total_number_of_events'] -= 1
-            self.list.listbox.delete(current_selection)
+            self.list.refresh_events()
 
     def on_click(self,event=None):
-        current_selection = self.list.listbox.identify_row(event.y)
-        if current_selection != ():
+        current_selection = self.get_selected_event_index()
+        if current_selection != -1:
             self.parent.playback_panel.player.set_pause(1)
             self.parent.playback_panel.player.set_time(int(control_block.events[current_selection][0]))
 
@@ -359,7 +367,7 @@ class ControlBar(Frame):
         self.play.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.pause.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.stop.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        Frame(self).pack(side=LEFT, fill=Y, padx=5)
+        ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.speedup.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.speeddown.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.previous_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
@@ -368,13 +376,13 @@ class ControlBar(Frame):
         self.zoomout.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.ibackword.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.iforward.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        Frame(self).pack(side=LEFT, fill=Y, padx=5)
+        ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
 
         self.set_grid.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        Frame(self).pack(side=LEFT, fill=Y, padx=5)
+        ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
 
         self.fullsc.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        Frame(self).pack(side=LEFT, fill=Y, padx=5)
+        ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.volslider.pack(side=LEFT, expand=TRUE, anchor=E, padx=1, pady=3)
 
         self.timer.start()
@@ -386,7 +394,8 @@ class ControlBar(Frame):
         HH = nval // 3600
         MM = nval // 60
         SS = nval % 60
-        self.currentTimeLabel.config(text="{:>02d}:{:>02d}:{:>02d}".format(HH,MM,SS))
+        hh = nval % 1000
+        self.currentTimeLabel.config(text="{:>02d}:{:>02d}:{:>02d}:{:>02d}".format(HH,MM,SS,hh))
 
 class Description(Frame):
 
@@ -835,12 +844,7 @@ class MainApplication(Frame):
         self.control_bar.timeslider.set(d_time)
 
     def translate_timestamp_to_clock(self, cur_val):
-        mval = "%.0f" % (cur_val)
-        nval = (int(mval)) // 1000 #in seconds
-        HH = nval // 3600
-        MM = nval // 60
-        SS = nval % 60
-        return "{:>02d}:{:>02d}:{:>02d}".format(HH,MM,SS)
+        return datetime.datetime.fromtimestamp(cur_val / float(1000)).strftime('%H:%M:%S')
 
     def translate_to_friendly_record(self, record):
         friendly_record = list.copy(record)
