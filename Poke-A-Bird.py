@@ -325,38 +325,38 @@ class ControlBar(Frame):
         self.volume_var = IntVar()
         self.scale_var = DoubleVar() #time of the video scale var
         self.timeslider_last_val = 0.0
-        self.timer = ttkTimer(self.parent.playback_panel.videopanel.OnTimer, 1.0)
+        self.timer = ttkTimer(self.parent.playback_panel.OnTimer, 1.0)
 
         #buttons and other widgets
         self.pause_icon = PhotoImage(file='./media/pause.png')
-        self.pause = Button(self,image=self.pause_icon, command=self.parent.playback_panel.videopanel.on_pause)
+        self.pause = Button(self,image=self.pause_icon, command=self.parent.playback_panel.on_pause)
         self.play_icon = PhotoImage(file='./media/play.png')
-        self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.videopanel.on_play)
+        self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.on_play)
         self.stop_icon = PhotoImage(file='./media/stop.png')
-        self.stop = Button(self, image=self.stop_icon, command=self.parent.playback_panel.videopanel.on_stop)
+        self.stop = Button(self, image=self.stop_icon, command=self.parent.playback_panel.on_stop)
         self.previous_frame_icon = PhotoImage(file='./media/previous_frame.png')
         self.previous_frame = Button(self, image=self.previous_frame_icon, state=DISABLED)
         self.next_frame_icon = PhotoImage(file='./media/next_frame.png')
         self.next_frame = Button(self, image=self.next_frame_icon, state=DISABLED)
         self.speedup_icon = PhotoImage(file='./media/speed_up.png')
-        self.speedup = Button(self, image=self.speedup_icon, command=self.parent.playback_panel.videopanel.OnSpeedUp)
+        self.speedup = Button(self, image=self.speedup_icon, command=self.parent.playback_panel.on_speed_up)
         self.speeddown_icon = PhotoImage(file='./media/speed_down.png')
-        self.speeddown = Button(self, image=self.speeddown_icon, command=self.parent.playback_panel.videopanel.OnSpeedDown)
+        self.speeddown = Button(self, image=self.speeddown_icon, command=self.parent.playback_panel.on_speed_down)
         self.zoom_in_icon = PhotoImage(file='./media/zoom_in.png')
-        self.zoomin = Button(self, image=self.zoom_in_icon, command=self.parent.playback_panel.videopanel.OnZoomIn)
+        self.zoomin = Button(self, image=self.zoom_in_icon, command=self.parent.playback_panel.on_zoom_in)
         self.zoom_out_icon = PhotoImage(file='./media/zoom_out.png')
-        self.zoomout = Button(self, image=self.zoom_out_icon, command=self.parent.playback_panel.videopanel.OnZoomOut)
+        self.zoomout = Button(self, image=self.zoom_out_icon, command=self.parent.playback_panel.on_zoom_out)
         self.int_forward_icon = PhotoImage(file='./media/int_forward.png')
         self.iforward = Button(self, image=self.int_forward_icon, state=DISABLED)
         self.int_backward_icon = PhotoImage(file='./media/int_backward.png')
         self.ibackword = Button(self, image=self.int_backward_icon, state=DISABLED)
         self.fullscreen_icon = PhotoImage(file='./media/fullscreen.png')
-        self.fullsc = Button(self, image=self.fullscreen_icon, command=self.parent.playback_panel.videopanel.OnFullScreen)
+        self.fullsc = Button(self, image=self.fullscreen_icon, command=self.parent.playback_panel.on_full_screen)
         self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
-        self.set_grid = Button(self,image=self.show_grid_icon, command=self.parent.playback_panel.videopanel.OnSetGrid, state=DISABLED)
-        self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.videopanel.volume_sel, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
+        self.set_grid = Button(self,image=self.show_grid_icon, state=DISABLED)
+        self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.timeScaleFrame = Frame(self)
-        self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.videopanel.scale_sel,
+        self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel,
                                    from_=0, to=1000, orient=HORIZONTAL, length=100, resolution=0.001, showvalue=0)
         self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00", width=6)
         self.currentTimeLabel.pack(side=RIGHT)
@@ -389,13 +389,12 @@ class ControlBar(Frame):
         self.parent.parent.update()
 
     def CalcTime(self, cur_val):
-        mval = "%.0f" % (cur_val * 1000)
-        nval = (int(mval)) // 1000 #in seconds
-        HH = nval // 3600
-        MM = nval // 60
-        SS = nval % 60
-        hh = nval % 1000
-        self.currentTimeLabel.config(text="{:>02d}:{:>02d}:{:>02d}:{:>02d}".format(HH,MM,SS,hh))
+        # mval = "%.0f" % (cur_val * 1000)
+        # nval = (int(mval)) // 1000 #in seconds
+        HH = cur_val // 3600
+        MM = cur_val // 60
+        SS = cur_val % 60
+        self.currentTimeLabel.config(text="{:>02d}:{:>02d}:{:>02d}".format(HH,MM,SS))
 
 class Description(Frame):
 
@@ -432,49 +431,46 @@ class Description(Frame):
         self.clear()
         return description
 
-class VideoPanel(Frame):
+class PlaybackPanel(Frame):
+
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-
-        self.canvas = Canvas(self, bg="black")
-        self.canvas.bind('<Button-1>', self.on_click)
+        
+        self.vlc_instance = vlc.Instance()
+        self.player = self.vlc_instance.media_player_new()
+        self.player.set_hwnd(self.winfo_id())
+        self.player.video_set_mouse_input(False)
+        self.player.video_set_key_input(False)
+        self.bind('<Button-1>', self.on_click)
 
     def on_click(self, event):
-        if self.parent.parent.side_bar.upper_bar.recordButton.cget("relief") == RAISED:
+        if self.parent.side_bar.upper_bar.recordButton.cget("relief") == RAISED:
             return
-        identities = self.parent.parent.side_bar.identity.get_selected_items()
-        events = self.parent.parent.side_bar.events.get_selected_items()
+        identities = self.parent.side_bar.identity.get_selected_items()
+        events = self.parent.side_bar.events.get_selected_items()
         if len(identities) == 0 or len(events) == 0:
             return
-
-        self.parent.parent.add_item(self.parent.player.get_time(),self.parent.player.get_time(),identities,events,self.parent.parent.side_bar.description.get_and_clear(), event.x, event.y,'')
+        self.parent.add_item(self.player.get_time(),self.player.get_time(),identities,events,self.parent.side_bar.description.get_and_clear(), event.x, event.y,'')
 
     def on_pause(self):
-        self.parent.player.pause()
+        self.player.pause()
 
     def on_stop(self):
-        self.parent.player.stop()
-        self.parent.player.set_media(None)
-        self.parent.parent.control_bar.timeslider.set(0)
-
-
-        self.parent.parent.dump_events_to_file()
-
+        self.player.stop()
+        self.player.set_media(None)
+        self.parent.control_bar.timeslider.set(0)
+        self.parent.dump_events_to_file()
         control_block.dump_cache()
-
-        if self.parent.parent.event_manager:
-            self.parent.parent.event_manager.on_media_stop()
-
-
-
+        if self.parent.event_manager:
+            self.parent.event_manager.on_media_stop()
 
     def on_play(self):
-        if not self.parent.player.get_media():
+        if not self.player.get_media():
             self.on_open()
         else:
-            if self.parent.player.play() == -1:
-                self.parent.errorDialog("Unable to play.")
+            if self.player.play() == -1:
+                self.error_dialog("Unable to play.")
 
     def on_open(self):
         self.on_stop()
@@ -484,204 +480,91 @@ class VideoPanel(Frame):
             dirname = os.path.dirname(fullname)
             filename = os.path.basename(fullname)
             configuration.config['last_path'] = dirname
-            media = self.parent.vlc_instance.media_new(str(os.path.join(dirname, filename)))
-            self.parent.player.set_media(media)
-            if platform.system() == 'Windows':
-                self.parent.player.set_hwnd(self.winfo_id())
-
+            media = self.vlc_instance.media_new(str(os.path.join(dirname, filename)))
+            self.player.set_media(media)
             control_block.current_media_hash = md5(fullname)
             control_block.load_cache()
-            if self.parent.parent.event_manager:
-                self.parent.parent.event_manager.on_media_open()
+            if self.parent.event_manager:
+                self.parent.event_manager.on_media_open()
 
-            self.parent.player.play()
-
-
-
-    def OnSetGrid(self):
-        self.parent.gridpanel.setGrid()
+            self.player.play()
 
     def OnTimer(self):
-        if self.parent.player == None:
+        if self.player == None:
             return
-        length = self.parent.player.get_length()
+        length = self.player.get_length()
         dbl = length * 0.001
-        self.parent.parent.control_bar.timeslider.config(to=dbl)
-        curtime = self.parent.player.get_time()
+        self.parent.control_bar.timeslider.config(to=dbl)
+        curtime = self.player.get_time()
         if curtime == -1:
             curtime = 0
         dbl = curtime * 0.001
-        self.parent.parent.control_bar.timeslider_last_val = dbl
-        self.parent.parent.control_bar.timeslider.set(dbl)
+        self.parent.control_bar.timeslider_last_val = dbl
+        self.parent.control_bar.timeslider.set(dbl)
 
-
-    #increase speed by 0.1 until a limit of 2.0
-    def OnSpeedUp(self):
-        if (self.parent.player.get_rate() == 0.25):
-            self.parent.player.set_rate(0.3)
-        elif (self.parent.player.get_rate() + 0.1 > 2.0):
-            self.parent.player.set_rate(2.0)
+    def on_speed_up(self):
+        if self.player.get_rate() == 0.25:
+            self.player.set_rate(0.3)
+        elif self.player.get_rate() + 0.1 > 2.0:
+            self.player.set_rate(2.0)
         else:
-            self.parent.player.set_rate(self.parent.player.get_rate() + 0.1)
-        self.parent.TextOnScreen("Speed: {:0>.2f}".format(self.parent.player.get_rate()))
+            self.player.set_rate(self.player.get_rate() + 0.1)
+        self.set_text_on_screen("Speed: {:0>.2f}".format(self.player.get_rate()))
 
-
-    #decrease speed by 0.1 until a limit of 0.25
-    def OnSpeedDown(self):
-        if (self.parent.player.get_rate() - 0.1 < 0.25):
-            self.parent.player.set_rate(0.25)
+    def on_speed_down(self):
+        if self.player.get_rate() - 0.1 < 0.25:
+            self.player.set_rate(0.25)
         else:
-            self.parent.player.set_rate(self.parent.player.get_rate() - 0.1)
-        self.parent.TextOnScreen("Speed: {:0>.2f}".format(self.parent.player.get_rate()))
+            self.player.set_rate(self.player.get_rate() - 0.1)
+        self.set_text_on_screen("Speed: {:0>.2f}".format(self.player.get_rate()))
 
-    #zoom in until a limit of 2x
-    def OnZoomIn(self):
-        if (self.parent.player.video_get_scale() == 0.0): #0 means fit automatically to the window
-            self.parent.player.video_set_scale(1)
-        elif (self.parent.player.video_get_scale() + 0.1 > 2):
-            self.parent.player.video_set_scale(2)
+    def on_zoom_in(self):
+        if (self.player.video_get_scale() == 0.0):
+            self.player.video_set_scale(1)
+        elif (self.player.video_get_scale() + 0.1 > 2):
+            self.player.video_set_scale(2)
         else:
-            self.parent.player.video_set_scale(self.parent.player.video_get_scale() + 0.1)
+            self.player.video_set_scale(self.player.video_get_scale() + 0.1)
 
-    #zoom out until a limit of 1x
-    def OnZoomOut(self):
-        if (self.parent.player.video_get_scale() - 0.1 < 1):
-            self.parent.player.video_set_scale(0)
+    def on_zoom_out(self):
+        if self.player.video_get_scale() - 0.1 < 1:
+            self.player.video_set_scale(0)
         else:
-            self.parent.player.video_set_scale(self.parent.player.video_get_scale() - 0.1)
+            self.player.video_set_scale(self.player.video_get_scale() - 0.1)
 
-    #enters and exits fullscreen mode
-    def OnFullScreen(self):
-        if not(self.parent.parent.parent.attributes("-fullscreen")):
-            self.parent.parent.parent.attributes('-fullscreen', True)
+    def on_full_screen(self):
+        if not self.parent.parent.attributes("-fullscreen"):
+            self.parent.parent.attributes('-fullscreen', True)
         else:
-            self.parent.parent.parent.attributes('-fullscreen', False)
+            self.parent.parent.attributes('-fullscreen', False)
 
     def scale_sel(self, evt):
-        cur_val = self.parent.parent.control_bar.scale_var.get()
-        self.parent.parent.control_bar.CalcTime(cur_val)
-        if (math.fabs(cur_val - self.parent.parent.control_bar.timeslider_last_val) > 1.5):
-            self.parent.parent.control_bar.timeslider_last_val = cur_val
-            mval = "%.0f" % (cur_val * 1000)
-            self.parent.player.set_time(int(mval)) # expects milliseconds
+        cur_val = self.parent.control_bar.scale_var.get()
+        self.parent.control_bar.CalcTime(int(cur_val))
+        if (math.fabs(cur_val - self.parent.control_bar.timeslider_last_val) > 1.5):
+            self.parent.control_bar.timeslider_last_val = cur_val
+            # mval = "%.0f" % (cur_val * 1000)
+            self.player.set_time(int(cur_val*1000)) # expects milliseconds
 
-    def volume_sel(self, evt):
-        if self.parent.player == None:
+    def on_volume_change(self, evt):
+        if self.player == None:
             return
-        volume = self.parent.parent.control_bar.volume_var.get()
+        volume = self.parent.control_bar.volume_var.get()
         if volume > 100:
             volume = 100
-        if self.parent.player.audio_set_volume(volume) == -1:
-            self.errorDialog("Failed to set volume")
-        self.parent.parent.status_bar.status_label.config(text="Volume: " + str(self.parent.parent.control_bar.volslider.get()) + '%')
+        if self.player.audio_set_volume(volume) == -1:
+            self.error_dialog("Failed to set volume")
+        self.parent.status_bar.status_label.config(text="Volume: " + str(self.parent.control_bar.volslider.get()) + '%')
 
-    def errorDialog(self, errormessage):
+    def error_dialog(self, errormessage):
         print(errormessage)
-
-class GridPanel(Frame):
-    def __init__(self, parent, *args, **kwargs):
-        Frame.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
-        self.eatingPoints = []
-        self.canvasFirstUse = False
-        self.canvasWH = (0,0)
-
-    def setGrid(self):
-        numOfPoints = 0
-        for i in range(5):
-            for j in range(5):
-                numOfPoints += 1
-                obj = self.parent.videopanel.canvas.create_text(140+ 60*i,20 + 60*j, text='Point {}'.format(numOfPoints), fill="yellow")
-                if (j==0):
-                    self.eatingPoints.append([])
-                self.eatingPoints[i].append(obj)
-        self.parent.videopanel.canvas.bind('<Button-1>', self.onCanvasClick) #'<Double-1>' for double-click
-        self.parent.videopanel.canvas.bind('<Button-3>', self.OnCanvasClickRight) #only for testing
-        self.parent.videopanel.canvas.bind('<Configure>', self.OnCanvasSizeChange) #when frame grows
-        #TODO: create rect from user clicks 4 points - pack objects on the rect instead of the canvas itself (2nd phase)
-        #TODO: button "show grid" to show and hide the grid which is the rect (2nd phase)
-        self.parent.videopanel.canvas.pack(fill=BOTH, expand=1)
-
-    def onCanvasClick(self, event):
-        #TODO: send the details of this click to EventManager
-        currtime = self.parent.player.get_time() * 0.001
-        currbird = self.parent.parent.side_bar.identity.list.listbox.curselection()
-        currevent = self.parent.parent.side_bar.events.list.listbox.curselection()
-        if (currbird != () and currevent!= ()):
-            print("Click: ({},{}), Closest Element: {}".format(event.x, event.y, (event.widget.find_closest(event.x, event.y))[0]))
-            print("Time: {}, Bird: {}, Event: {}".format(round(currtime,3), currbird[0], currevent[0]))
-            print("")
-
-    #only for testing - not useful
-    def OnCanvasClickRight(self, event):
-        clickxy = self.parent.player.video_get_cursor() #doesn't work - check this (trying to prints cursor's coordinates in the video frame)
-        vwei, vhei = self.parent.player.video_get_size()
-        fhei = self.parent.winfo_height()
-        fwei = self.parent.winfo_width()
-        print("PRINTXY: ({},{})".format(clickxy[0],clickxy[1]))
-        print("Video Wei, Hei: ({},{})".format(vwei, vhei)) #video size=1280x720
-        print("Frame Wei, Hei: ({},{})".format(fwei, fhei)) #current frame size (say): 1000x200
-        #need to calculate (x,y) click on frame to percent of (width, height) of video
-
-    #scaling the "eating points" when the frame size changes
-    def OnCanvasSizeChange(self, event):
-        if (not self.canvasFirstUse):
-            self.canvasFirstUse = True
-            self.canvasWH = (self.parent.videopanel.canvas.winfo_width(), self.parent.videopanel.canvas.winfo_height())
-            return
-        newWH = (event.width, event.height)
-        distWH = (newWH[0] - self.canvasWH[0] , newWH[1] - self.canvasWH[1])
-
-        #TODO: find a real scaling-to-frame algorithm!!! below is bullshit
-        if (distWH[0] == 0): #changes only in y axis
-            for i in range(5):
-                for j in range(5):
-                    self.parent.videopanel.canvas.move(self.eatingPoints[i][j], 0, distWH[1] // 2)
-        elif (distWH[1] == 0): #changes only in x axis
-            for i in range(5):
-                for j in range(5):
-                    self.parent.videopanel.canvas.move(self.eatingPoints[i][j], distWH[0] // 2, 0)
-        elif (distWH[0] > 0): #frame grows
-            self.parent.videopanel.canvas.scale("all",0,0,1.02,1.02)
-        else: #frame shrinks
-            self.parent.videopanel.canvas.scale("all", 0, 0, 0.98, 0.98)
-        self.canvasWH = newWH
-
-class PlaybackPanel(Frame):
-
-    def __init__(self, parent, *args, **kwargs):
-        Frame.__init__(self, parent, *args, **kwargs)
-        self.parent = parent
-        
-        self.vlc_instance = vlc.Instance()
-        self.player = self.vlc_instance.media_player_new()
-
-        self.videopanel = VideoPanel(self, bg="black")
-        self.gridpanel = GridPanel(self)
-        self.videopanel.pack(fill=BOTH, expand=1)
     
-
-    #config of marquee strings (a.k.a messages on the video)
-    def TextOnScreen(self, text):
-        self.player.video_set_marquee_int(0, 1)  # enable marquee
-        self.player.video_set_marquee_int(6, 48)  # font size
-        self.player.video_set_marquee_int(7, 2000)  # timeout
-        self.player.video_set_marquee_string(1, text) #set text
-        self.player.video_get_marquee_string(1) #show text
-
-    def ShowLogoOnScreen(self, logopath):
-        self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.enable, 1)
-        self.parent.playback_panel.player.video_set_logo_string(vlc.VideoLogoOption.file, logopath)
-        # self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.opacity, 150)
-        # self.parent.playback_panel.player.video_set_logo_string(vlc.VideoLogoOption.logo_x, "10")
-        # self.parent.playback_panel.player.video_set_logo_string(vlc.VideoLogoOption.logo_y, "10")
-        # self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.position, 3)
-        # self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.repeat, 1)
-        self.parent.playback_panel.player.video_get_logo_int(1)
-
-    def RemoveLogoFromScreen(self):
-        self.parent.playback_panel.player.video_set_marquee_int(0, 0)
-        self.parent.playback_panel.player.video_set_logo_int(vlc.VideoLogoOption.enable, 0)
+    def set_text_on_screen(self, text):
+        self.player.video_set_marquee_int(0, 1)
+        self.player.video_set_marquee_int(6, 48)
+        self.player.video_set_marquee_int(7, 2000)
+        self.player.video_set_marquee_string(1, text)
+        self.player.video_get_marquee_string(1)
 
 class SideBar(Frame):
     class UpperBar(Frame):
@@ -721,7 +604,6 @@ class SideBar(Frame):
             return
 
         if self.upper_bar.recordButton.cget("relief") == RAISED:
-            self.parent.playback_panel.videopanel.canvas.pack(fill=BOTH, expand=1)
             self.upper_bar.recordButton.config(relief=SUNKEN)
         else:
             self.upper_bar.recordButton.config(relief=RAISED)
@@ -734,7 +616,7 @@ class MenuBar(Frame):
         self.menu = Menu(self)
 
         filemenu = Menu(self.menu, tearoff=0)
-        filemenu.add_command(label="Open", command=self.parent.playback_panel.videopanel.on_open)
+        filemenu.add_command(label="Open", command=self.parent.playback_panel.on_open)
         filemenu.add_command(label="Exit", command=self.parent.parent.quit)
         self.menu.add_cascade(label="File", menu=filemenu)
 
@@ -844,7 +726,7 @@ class MainApplication(Frame):
         self.control_bar.timeslider.set(d_time)
 
     def translate_timestamp_to_clock(self, cur_val):
-        return datetime.datetime.fromtimestamp(cur_val / float(1000)).strftime('%H:%M:%S')
+        return datetime.timedelta(milliseconds=cur_val)
 
     def translate_to_friendly_record(self, record):
         friendly_record = list.copy(record)
@@ -867,7 +749,7 @@ class MainApplication(Frame):
         if self.event_manager:
             self.event_manager.refresh_events()
 
-        self.playback_panel.TextOnScreen(str(identities) + ' -> ' + str(events))
+        self.playback_panel.set_text_on_screen(str(identities) + ' -> ' + str(events))
 
     def on_event_manager_button_click(self):
         if not self.event_manager:
@@ -893,7 +775,7 @@ class MainApplication(Frame):
         configuration.config['last_export_path'] = os.path.dirname(fullname)
 
     def on_exit(self):
-        self.playback_panel.videopanel.on_stop()
+        self.playback_panel.on_stop()
         with open(configuration.config_file, 'w') as fp:
             json.dump(configuration.config, fp)
         self.parent.destroy()
