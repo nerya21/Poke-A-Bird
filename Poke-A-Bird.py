@@ -99,16 +99,16 @@ class EventManager(Toplevel):
 
             self.listbox["columns"]=('video_timestamp', 'session_timestamp', 'identities','events','description' , 'pos_x', 'pos_y', 'attribute')
             self.listbox['show'] = 'headings'
-            self.listbox.column("video_timestamp", minwidth=90, width=90, anchor='w')
-            self.listbox.column("session_timestamp", minwidth=150, width=150, anchor='w')
+            self.listbox.column("video_timestamp", minwidth=110, width=110, anchor='w')
+            self.listbox.column("session_timestamp", minwidth=110, width=110, anchor='w')
             self.listbox.column("identities", minwidth=100, width=100, anchor='w')
             self.listbox.column("events", minwidth=100, width=100, anchor='w')
             self.listbox.column("description", minwidth=100, width=100, anchor='w')
             self.listbox.column("pos_x", minwidth=70, width=70, anchor='w')
             self.listbox.column("pos_y", minwidth=50, width=50, anchor='w')
             self.listbox.column("attribute", minwidth=100, width=100, anchor='w')
-            self.listbox.heading("video_timestamp", text='Timestamp', anchor='w')
-            self.listbox.heading("session_timestamp", text='Session Timestamp', anchor='w')
+            self.listbox.heading("video_timestamp", text='Video Time', anchor='w')
+            self.listbox.heading("session_timestamp", text='Session Time', anchor='w')
             self.listbox.heading("identities", text='Birds', anchor='w')
             self.listbox.heading("events", text='Events', anchor='w')
             self.listbox.heading("description", text='Description', anchor='w')
@@ -262,7 +262,7 @@ class ListBox(Frame):
 
             self.scrollbar = Scrollbar(self)
             self.listbox = Listbox(self, height=5, yscrollcommand=self.scrollbar.set, borderwidth=0,
-                                   highlightthickness=0, exportselection=False, activestyle=NONE)
+                                   highlightthickness=0, exportselection=False, activestyle=NONE, selectmode = EXTENDED)
             self.scrollbar.config(command=self.listbox.yview)
 
             self.scrollbar.pack(side=RIGHT, fill=Y)
@@ -447,8 +447,8 @@ class PlaybackPanel(Frame):
     def on_click(self, event):
         if self.parent.side_bar.upper_bar.recordButton.cget("relief") == RAISED:
             return
-        identities = self.parent.side_bar.identity.get_selected_items()
-        events = self.parent.side_bar.events.get_selected_items()
+        identities = ", ".join(self.parent.side_bar.identity.get_selected_items())
+        events = ", ".join(self.parent.side_bar.events.get_selected_items())
         if len(identities) == 0 or len(events) == 0:
             return
         self.parent.add_item(self.player.get_time(),self.player.get_time(),identities,events,self.parent.side_bar.description.get_and_clear(), event.x, event.y,'')
@@ -732,6 +732,8 @@ class MainApplication(Frame):
         friendly_record = list.copy(record)
         friendly_record[0] = self.translate_timestamp_to_clock(friendly_record[0])
         friendly_record[1] = self.translate_timestamp_to_clock(friendly_record[1])
+        # friendly_record[2] = ", ".join(friendly_record[2])
+        # friendly_record[3] = ", ".join(friendly_record[3])
         return friendly_record 
 
     def add_item(self, video_timestamp, session_timestamp, identities,events ,description, pos_x, pos_y, attribute):
@@ -749,7 +751,7 @@ class MainApplication(Frame):
         if self.event_manager:
             self.event_manager.refresh_events()
 
-        self.playback_panel.set_text_on_screen(str(identities) + ' -> ' + str(events))
+        self.playback_panel.set_text_on_screen(identities + ' -> ' + events)
 
     def on_event_manager_button_click(self):
         if not self.event_manager:
@@ -775,6 +777,10 @@ class MainApplication(Frame):
         configuration.config['last_export_path'] = os.path.dirname(fullname)
 
     def on_exit(self):
+        configuration.config['main_application']['size_x'] = self.winfo_width()
+        configuration.config['main_application']['size_y'] = self.winfo_height()
+        configuration.config['main_application']['pos_x'] = self.winfo_x()
+        configuration.config['main_application']['pos_y'] = self.winfo_y()
         self.playback_panel.on_stop()
         with open(configuration.config_file, 'w') as fp:
             json.dump(configuration.config, fp)
@@ -789,7 +795,7 @@ class MainApplication(Frame):
 
 if __name__ == "__main__":
     root = Tk()
-    root.minsize(width=840, height=460)
+    root.minsize(width=988, height=551)
     root.title("Poke-A-Bird")
     root.iconbitmap('./media/bird.ico')
     #root.attributes('-fullscreen', True) #force fullscreen
