@@ -164,7 +164,7 @@ class EventManager(Toplevel):
         self.geometry("%dx%d%+d%+d" % (event_manager_config['size_x'], event_manager_config['size_y'],
                                        event_manager_config['pos_x'], event_manager_config['pos_y']))
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
-        self.parent.side_bar.upper_bar.eventManagerButton.config(relief=SUNKEN)
+        # self.parent.side_bar.upper_bar.eventManagerButton.config(relief=SUNKEN)
 
         self.control_bar = self.Control(self, borderwidth=2)
         self.list = self.List(self, borderwidth=2)
@@ -200,7 +200,7 @@ class EventManager(Toplevel):
         configuration.config['event_manager']['size_y'] = self.winfo_height()
         configuration.config['event_manager']['pos_x'] = self.winfo_x()
         configuration.config['event_manager']['pos_y'] = self.winfo_y()
-        self.parent.side_bar.upper_bar.eventManagerButton.config(relief=RAISED)
+        # self.parent.side_bar.upper_bar.eventManagerButton.config(relief=RAISED)
         self.bind_all('<Enter>', self.parent.status_bar.DisplayOnLabel)
         self.destroy()
         self.parent.event_manager = None
@@ -459,6 +459,8 @@ class PlaybackPanel(Frame):
     def on_click(self, event):
         if not self.parent.side_bar.is_clock_set():
             return
+        if not self.parent.side_bar.is_location_set():
+            return
         identities = ", ".join(self.parent.side_bar.identity.get_selected_items())
         events = ", ".join(self.parent.side_bar.events.get_selected_items())
         if len(events) == 0:
@@ -595,19 +597,30 @@ class PlaybackPanel(Frame):
         self.parent.playback_panel.on_pause()
         self.parent.playback_panel.player.set_time(timestamp)
 
+    def get_video_name(self):
+        return self.player.get_title()
+
 class SideBar(Frame):
     class UpperBar(Frame):
         def __init__(self, parent, *args, **kwargs):
             Frame.__init__(self, parent, *args, **kwargs)
             self.parent = parent
 
-            self.record_icon = PhotoImage(file='./media/record.png')
-            self.set_clock_button = Button(self, image=self.record_icon, command=self.parent.on_set_clock_click)
+            self.set_clock_icon = PhotoImage(file='./media/clock_32.png')
+            self.set_clock_button = Button(self, image=self.set_clock_icon, command=self.parent.on_set_clock_click)
             self.set_clock_button.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
 
-            self.event_manager_icon = PhotoImage(file='./media/event_manager.png')
-            self.eventManagerButton = Button(self, image=self.event_manager_icon, command=self.parent.parent.on_event_manager_button_click)
-            self.eventManagerButton.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
+            self.set_location_icon = PhotoImage(file='./media/csv_32.png')
+            self.set_location_button = Button(self, image=self.set_location_icon, command=self.parent.on_set_location)
+            self.set_location_button.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
+
+            self.calibrate_icon = PhotoImage(file='./media/grid_32.png')
+            self.calibrate_button = Button(self, image=self.calibrate_icon, state=DISABLED)
+            self.calibrate_button.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
+
+            # self.event_manager_icon = PhotoImage(file='./media/event_manager.png')
+            # self.eventManagerButton = Button(self, image=self.event_manager_icon, command=self.parent.parent.on_event_manager_button_click)
+            # self.eventManagerButton.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
 
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
@@ -629,9 +642,9 @@ class SideBar(Frame):
 
 
     def on_set_clock_click(self):
-        if not self.parent.playback_panel.is_media_loaded():
+        if control_block.cached['session_timestamp']['is_set'] == 1:
             return
-        if self.upper_bar.set_clock_button.cget("relief") == SUNKEN:
+        if not self.parent.playback_panel.is_media_loaded():
             return
 
         control_block.cached['session_timestamp']['value'] = self.parent.playback_panel.get_current_timestamp()
@@ -641,18 +654,45 @@ class SideBar(Frame):
 
     def on_stop(self):
         self.upper_bar.set_clock_button.config(relief=RAISED)
+        self.upper_bar.set_location_button.config(relief=RAISED)
 
     def on_play(self):
         if control_block.cached['session_timestamp']['is_set']:
             self.upper_bar.set_clock_button.config(relief=SUNKEN)
+        if control_block.cached['export_location']['is_set']:
+            self.upper_bar.set_location_button.config(relief=SUNKEN)
 
     def on_reset(self):
         control_block.cached['session_timestamp']['value'] = 0
         control_block.cached['session_timestamp']['is_set'] = 0
-        self.on_stop()
+        self.upper_bar.set_clock_button.config(relief=RAISED)
+
+        control_block.cached['export_location']['is_set'] = 0
+        control_block.cached['export_location']['value'] = ''
+        self.upper_bar.set_location_button.config(relief=RAISED)
 
     def is_clock_set(self):
-        return self.upper_bar.set_clock_button.cget("relief") == SUNKEN
+        return control_block.cached['session_timestamp']['is_set'] == 1
+
+    def on_set_location(self):
+        if control_block.cached['export_location']['is_set'] == 1:
+            return
+        if not self.parent.playback_panel.is_media_loaded():
+            return
+        p = pathlib.Path(os.path.expanduser(configuration.config['last_export_path']))
+        # fullname = asksaveasfilename(initialfile = self.parent.playback_panel.get_video_name() + '.csv',initialdir = p, title = "Export As",filetypes = (("CSV file (*.csv)","*.csv"),("All files (*)","*.*")))
+        fullname = asksaveasfilename(initialdir = p, title = "Export As",filetypes = (("CSV file (*.csv)","*.csv"),("All files (*)","*.*")))
+        if fullname == '':
+            return
+        if pathlib.Path(fullname).is_file():
+            pass #TODO: handle file exist
+        control_block.cached['export_location']['is_set'] = 1
+        control_block.cached['export_location']['value'] = fullname + '.csv'
+        configuration.config['last_export_path'] = os.path.dirname(fullname + '.csv')
+        self.upper_bar.set_location_button.config(relief=SUNKEN)
+
+    def is_location_set(self):
+        return control_block.cached['export_location']['is_set'] == 1
 
 class MenuBar(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -663,6 +703,7 @@ class MenuBar(Frame):
 
         filemenu = Menu(self.menu, tearoff=0)
         filemenu.add_command(label="Open", command=self.parent.playback_panel.on_open)
+        filemenu.add_command(label="Reset session", command=self.parent.on_reset)
         filemenu.add_command(label="Exit", command=self.parent.parent.quit)
         self.menu.add_cascade(label="File", menu=filemenu)
 
@@ -734,10 +775,12 @@ class MainApplication(Frame):
                 self.status_label.config(text="Set Grid")
             elif event.widget == self.parent.control_bar.volslider:
                 self.status_label.config(text="Volume: " + str(self.parent.control_bar.volslider.get()) + '%')
-            elif event.widget == self.parent.side_bar.upper_bar.eventManagerButton:
-                self.status_label.config(text="Open Event Manager")
+            elif event.widget == self.parent.side_bar.upper_bar.set_location_button:
+                self.status_label.config(text="Set Exporting Location")
             elif event.widget == self.parent.side_bar.upper_bar.set_clock_button:
-                self.status_label.config(text="Set Events Recording")
+                self.status_label.config(text="Set Clock")
+            elif event.widget == self.parent.side_bar.upper_bar.calibrate_button:
+                self.status_label.config(text="Calibrate")
             else:
                 self.status_label.config(text="Poke-A-Bird")
 
@@ -786,7 +829,7 @@ class MainApplication(Frame):
         record = [video_timestamp, session_timestamp, identities,events,description , pos_x, pos_y, attribute ]
         if len(control_block.events) >= configuration.config['event_manager']['number_of_events']:
             old_record = control_block.events.pop(0)
-            with open(str(control_block.current_media_hash + '.csv'), "a") as events_file:
+            with open(control_block.cached['export_location']['value'], "a") as events_file:
                 csv.writer(events_file, delimiter=',').writerow(self.translate_to_friendly_record(old_record))
             if self.event_manager:
                 self.event_manager.refresh_events()
@@ -809,18 +852,21 @@ class MainApplication(Frame):
         if not self.event_manager:
             self.event_manager = EventManager(self, takefocus=True)
 
-    def on_export_events(self):
-        p = pathlib.Path(os.path.expanduser(configuration.config['last_export_path']))
-        fullname = asksaveasfilename(initialdir = p, title = "Export As",filetypes = (("CSV file (*.csv)","*.csv"),("All files (*)","*.*")))
-        if fullname == '':
-            return
-        export_path = pathlib.Path(fullname)
-        if pathlib.Path(control_block.current_media_hash + '.csv').is_file():
-            copyfile(str(control_block.current_media_hash + '.csv'), fullname)
-        with open(export_path, "a") as events_file:
-            csv.writer(events_file, delimiter=',').writerows(control_block.events)
 
-        configuration.config['last_export_path'] = os.path.dirname(fullname)
+
+    def on_export_events(self):
+        raise Exception()
+        # p = pathlib.Path(os.path.expanduser(configuration.config['last_export_path']))
+        # fullname = asksaveasfilename(initialdir = p, title = "Export As",filetypes = (("CSV file (*.csv)","*.csv"),("All files (*)","*.*")))
+        # if fullname == '':
+        #     return
+        # export_path = pathlib.Path(fullname)
+        # if pathlib.Path(control_block.current_media_hash + '.csv').is_file():
+        #     copyfile(str(control_block.current_media_hash + '.csv'), fullname)
+        # with open(export_path, "a") as events_file:
+        #     csv.writer(events_file, delimiter=',').writerows(control_block.events)
+
+        # configuration.config['last_export_path'] = os.path.dirname(fullname)
 
     def on_exit(self):
         configuration.config['main_application']['size_x'] = self.winfo_width()
@@ -832,9 +878,17 @@ class MainApplication(Frame):
             json.dump(configuration.config, fp)
         self.parent.destroy()
 
+    def on_reset(self):
+        #TODO: add warning
+        self.side_bar.on_reset()
+
     def dump_events_to_file(self):
+        if not self.side_bar.is_location_set():
+            if len(control_block.events) > 0:
+                raise Exception()
+            return
         for item in control_block.events:
-            with open(str(control_block.current_media_hash + '.csv'), "a") as events_file:
+            with open(control_block.cached['export_location']['value'], "a") as events_file:
                 csv.writer(events_file, delimiter=',').writerow(item)
 
         control_block.events.clear()
