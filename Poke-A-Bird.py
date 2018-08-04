@@ -18,7 +18,9 @@ class ControlBlock:
     events = []
     current_media_hash= ''
     cached = {}
-    default_cache = {'total_number_of_events': 0, 'session_timestamp':0}
+    default_cache = {'total_number_of_events': 0,
+                     'session_timestamp': {'is_set': 0, 'value': 0},
+                     'export_location': {'is_set': 0, 'value': ''}}
 
     def dump_cache(self):
         if control_block.current_media_hash != '':
@@ -191,8 +193,7 @@ class EventManager(Toplevel):
     def on_click(self,event=None):
         current_selection = self.get_selected_event_index()
         if current_selection != -1:
-            self.parent.playback_panel.player.set_pause(1)
-            self.parent.playback_panel.player.set_time(int(control_block.events[current_selection][0]))
+            self.parent.playback_panel.goto_timestamp(int(control_block.events[current_selection][0]))
 
     def on_closing(self):
         configuration.config['event_manager']['size_x'] = self.winfo_width()
@@ -329,7 +330,7 @@ class ControlBar(Frame):
 
         #buttons and other widgets
         self.pause_icon = PhotoImage(file='./media/pause.png')
-        self.pause = Button(self,image=self.pause_icon, command=self.parent.playback_panel.on_pause)
+        # self.pause = Button(self,image=self.pause_icon, command=self.parent.playback_panel.on_pause)
         self.play_icon = PhotoImage(file='./media/play.png')
         self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.on_play)
         self.stop_icon = PhotoImage(file='./media/stop.png')
@@ -365,7 +366,8 @@ class ControlBar(Frame):
         #packing
         self.timeScaleFrame.pack(side=TOP, fill=X, expand=1)
         self.play.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        self.pause.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
+        # self.pause.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.stop.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.speedup.pack(side=LEFT, fill=Y, padx=1, pady=3)
@@ -387,6 +389,15 @@ class ControlBar(Frame):
 
         self.timer.start()
         self.parent.parent.update()
+
+    def on_play(self):
+        self.play.configure(image=self.pause_icon, command=self.parent.playback_panel.on_pause)
+
+    def on_pause(self):
+        self.play.configure(image=self.play_icon, command=self.parent.playback_panel.on_play)
+
+    def on_stop(self):
+        self.on_pause()
 
     def CalcTime(self, cur_val):
         # mval = "%.0f" % (cur_val * 1000)
@@ -437,6 +448,7 @@ class PlaybackPanel(Frame):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         
+        # self.vlc_instance = vlc.Instance('--no-ts-trust-pcr','--ts-seek-percent')
         self.vlc_instance = vlc.Instance()
         self.player = self.vlc_instance.media_player_new()
         self.player.set_hwnd(self.winfo_id())
@@ -445,16 +457,17 @@ class PlaybackPanel(Frame):
         self.bind('<Button-1>', self.on_click)
 
     def on_click(self, event):
-        if self.parent.side_bar.upper_bar.recordButton.cget("relief") == RAISED:
+        if not self.parent.side_bar.is_clock_set():
             return
         identities = ", ".join(self.parent.side_bar.identity.get_selected_items())
         events = ", ".join(self.parent.side_bar.events.get_selected_items())
-        if len(identities) == 0 or len(events) == 0:
+        if len(events) == 0:
             return
-        self.parent.add_item(self.player.get_time(),self.player.get_time(),identities,events,self.parent.side_bar.description.get_and_clear(), event.x, event.y,'')
+        self.parent.add_item(self.player.get_time(),self.player.get_time()-control_block.cached['session_timestamp']['value'],identities,events,self.parent.side_bar.description.get_and_clear(), event.x, event.y,'')
 
     def on_pause(self):
         self.player.pause()
+        self.parent.control_bar.on_pause()
 
     def on_stop(self):
         self.player.stop()
@@ -464,6 +477,8 @@ class PlaybackPanel(Frame):
         control_block.dump_cache()
         if self.parent.event_manager:
             self.parent.event_manager.on_media_stop()
+        self.parent.control_bar.on_stop()
+        self.parent.side_bar.on_stop()
 
     def on_play(self):
         if not self.player.get_media():
@@ -471,6 +486,8 @@ class PlaybackPanel(Frame):
         else:
             if self.player.play() == -1:
                 self.error_dialog("Unable to play.")
+            self.parent.control_bar.on_play()
+            self.parent.side_bar.on_play()
 
     def on_open(self):
         self.on_stop()
@@ -488,6 +505,8 @@ class PlaybackPanel(Frame):
                 self.parent.event_manager.on_media_open()
 
             self.player.play()
+            self.parent.control_bar.on_play()
+            self.parent.side_bar.on_play()
 
     def OnTimer(self):
         if self.player == None:
@@ -566,6 +585,16 @@ class PlaybackPanel(Frame):
         self.player.video_set_marquee_string(1, text)
         self.player.video_get_marquee_string(1)
 
+    def is_media_loaded(self):
+        return self.player.get_media()
+
+    def get_current_timestamp(self):
+        return self.player.get_time()
+
+    def goto_timestamp(self, timestamp):
+        self.parent.playback_panel.on_pause()
+        self.parent.playback_panel.player.set_time(timestamp)
+
 class SideBar(Frame):
     class UpperBar(Frame):
         def __init__(self, parent, *args, **kwargs):
@@ -573,8 +602,8 @@ class SideBar(Frame):
             self.parent = parent
 
             self.record_icon = PhotoImage(file='./media/record.png')
-            self.recordButton = Button(self, image=self.record_icon, command=self.parent.OnRecord)
-            self.recordButton.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
+            self.set_clock_button = Button(self, image=self.record_icon, command=self.parent.on_set_clock_click)
+            self.set_clock_button.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
 
             self.event_manager_icon = PhotoImage(file='./media/event_manager.png')
             self.eventManagerButton = Button(self, image=self.event_manager_icon, command=self.parent.parent.on_event_manager_button_click)
@@ -599,14 +628,31 @@ class SideBar(Frame):
         self.description_spacer.pack(fill=X,pady=5)
 
 
-    def OnRecord(self):
-        if not self.parent.playback_panel.player.get_media():
+    def on_set_clock_click(self):
+        if not self.parent.playback_panel.is_media_loaded():
+            return
+        if self.upper_bar.set_clock_button.cget("relief") == SUNKEN:
             return
 
-        if self.upper_bar.recordButton.cget("relief") == RAISED:
-            self.upper_bar.recordButton.config(relief=SUNKEN)
-        else:
-            self.upper_bar.recordButton.config(relief=RAISED)
+        control_block.cached['session_timestamp']['value'] = self.parent.playback_panel.get_current_timestamp()
+        control_block.cached['session_timestamp']['is_set'] = 1
+
+        self.upper_bar.set_clock_button.config(relief=SUNKEN)
+
+    def on_stop(self):
+        self.upper_bar.set_clock_button.config(relief=RAISED)
+
+    def on_play(self):
+        if control_block.cached['session_timestamp']['is_set']:
+            self.upper_bar.set_clock_button.config(relief=SUNKEN)
+
+    def on_reset(self):
+        control_block.cached['session_timestamp']['value'] = 0
+        control_block.cached['session_timestamp']['is_set'] = 0
+        self.on_stop()
+
+    def is_clock_set(self):
+        return self.upper_bar.set_clock_button.cget("relief") == SUNKEN
 
 class MenuBar(Frame):
     def __init__(self, parent, *args, **kwargs):
@@ -661,9 +707,9 @@ class MainApplication(Frame):
 
         def DisplayOnLabel(self, event):
             if event.widget == self.parent.control_bar.play:
-                self.status_label.config(text="Play")
-            elif event.widget == self.parent.control_bar.pause:
-                self.status_label.config(text="Pause")
+                self.status_label.config(text="Play/Pause")
+            # elif event.widget == self.parent.control_bar.pause:
+                # self.status_label.config(text="Pause")
             elif event.widget == self.parent.control_bar.stop:
                 self.status_label.config(text="Stop")
             elif event.widget == self.parent.control_bar.speedup:
@@ -690,7 +736,7 @@ class MainApplication(Frame):
                 self.status_label.config(text="Volume: " + str(self.parent.control_bar.volslider.get()) + '%')
             elif event.widget == self.parent.side_bar.upper_bar.eventManagerButton:
                 self.status_label.config(text="Open Event Manager")
-            elif event.widget == self.parent.side_bar.upper_bar.recordButton:
+            elif event.widget == self.parent.side_bar.upper_bar.set_clock_button:
                 self.status_label.config(text="Set Events Recording")
             else:
                 self.status_label.config(text="Poke-A-Bird")
