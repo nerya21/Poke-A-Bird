@@ -2,6 +2,7 @@ import hashlib
 import json
 from shutil import copyfile
 from tkinter import *
+from tkinter import messagebox
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 import math
 import vlc
@@ -682,10 +683,10 @@ class SideBar(Frame):
         p = pathlib.Path(os.path.expanduser(configuration.config['last_export_path']))
         # fullname = asksaveasfilename(initialfile = self.parent.playback_panel.get_video_name() + '.csv',initialdir = p, title = "Export As",filetypes = (("CSV file (*.csv)","*.csv"),("All files (*)","*.*")))
         fullname = asksaveasfilename(initialdir = p, title = "Export As",filetypes = (("CSV file (*.csv)","*.csv"),("All files (*)","*.*")))
-        if fullname == '':
-            return
-        if pathlib.Path(fullname).is_file():
-            pass #TODO: handle file exist
+        # if fullname == '':
+        #     return
+        # if pathlib.Path(fullname).is_file():
+        #     pass #TODO: handle file exist
         control_block.cached['export_location']['is_set'] = 1
         control_block.cached['export_location']['value'] = fullname + '.csv'
         configuration.config['last_export_path'] = os.path.dirname(fullname + '.csv')
@@ -701,31 +702,25 @@ class MenuBar(Frame):
 
         self.menu = Menu(self)
 
-        filemenu = Menu(self.menu, tearoff=0)
-        filemenu.add_command(label="Open", command=self.parent.playback_panel.on_open)
-        filemenu.add_command(label="Reset session", command=self.parent.on_reset)
-        filemenu.add_command(label="Exit", command=self.parent.parent.quit)
-        self.menu.add_cascade(label="File", menu=filemenu)
+        file_menu = Menu(self.menu, tearoff=0)
+        file_menu.add_command(label="Open", command=self.parent.playback_panel.on_open)
+        file_menu.add_command(label="Exit", command=self.parent.parent.quit)
+        self.menu.add_cascade(label="File", menu=file_menu)
 
-        calimenu = Menu(self.menu, tearoff=0)
-        calimenu.add_command(label="Calibrate")
-        calimenu.add_command(label="Load existing calibration")
-        self.menu.add_cascade(label="Calibration", menu=calimenu)
+        session_menu = Menu(self.menu, tearoff=0)
+        session_menu.add_command(label="Set grid")
+        session_menu.add_command(label="Set clock", command=self.parent.side_bar.on_set_clock_click)
+        session_menu.add_command(label="Set export location", command=self.parent.side_bar.on_set_location)
+        session_menu.add_command(label="Reset session settings", command=self.parent.on_reset)
+        self.menu.add_cascade(label="Session", menu=session_menu)
 
-        eventmenu = Menu(self.menu, tearoff=0)
-        eventmenu.add_command(label="Open event manager", command=parent.on_open_event_manager_menu_click)
-        eventmenu.add_command(label="Export events", command=parent.on_export_events)
-        self.menu.add_cascade(label="Events", menu=eventmenu)
+        events_menu = Menu(self.menu, tearoff=0)
+        events_menu.add_command(label="Open event manager", command=parent.on_open_event_manager_menu_click)
+        self.menu.add_cascade(label="Events", menu=events_menu)
 
-        settingsmenu = Menu(self.menu, tearoff=0)
-        settingsmenu.add_command(label="Shortcuts")
-        self.menu.add_cascade(label="Settings", menu=settingsmenu)
-
-        helpmenu = Menu(self.menu, tearoff=0)
-        helpmenu.add_command(label="Check for updates")
-        helpmenu.add_command(label="Website")
-        helpmenu.add_command(label="About", command=self.help_about)
-        self.menu.add_cascade(label="Help", menu=helpmenu)
+        help_menu = Menu(self.menu, tearoff=0)
+        help_menu.add_command(label="About", command=self.help_about)
+        self.menu.add_cascade(label="Help", menu=help_menu)
 
     def help_about(self):
         window = Toplevel(self.parent.parent)
@@ -879,8 +874,13 @@ class MainApplication(Frame):
         self.parent.destroy()
 
     def on_reset(self):
-        #TODO: add warning
-        self.side_bar.on_reset()
+        if not self.playback_panel.is_media_loaded:
+            return
+        if messagebox.askokcancel("Reset Session", 'Are you sure you wish to continue?'):
+            self.dump_events_to_file()
+            if self.event_manager:
+                self.event_manager.on_media_stop()
+            self.side_bar.on_reset()
 
     def dump_events_to_file(self):
         if not self.side_bar.is_location_set():
@@ -892,7 +892,8 @@ class MainApplication(Frame):
                 csv.writer(events_file, delimiter=',').writerow(item)
 
         control_block.events.clear()
-
+        control_block.cached['total_number_of_events'] = 0
+        
 if __name__ == "__main__":
     root = Tk()
     root.minsize(width=988, height=551)
