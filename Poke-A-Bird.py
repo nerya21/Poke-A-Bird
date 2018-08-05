@@ -331,7 +331,6 @@ class ControlBar(Frame):
 
         #buttons and other widgets
         self.pause_icon = PhotoImage(file='./media/pause.png')
-        # self.pause = Button(self,image=self.pause_icon, command=self.parent.playback_panel.on_pause)
         self.play_icon = PhotoImage(file='./media/play.png')
         self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.on_play)
         self.stop_icon = PhotoImage(file='./media/stop.png')
@@ -355,7 +354,6 @@ class ControlBar(Frame):
         self.fullscreen_icon = PhotoImage(file='./media/fullscreen.png')
         self.fullsc = Button(self, image=self.fullscreen_icon, command=self.parent.playback_panel.on_full_screen)
         self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
-        self.set_grid = Button(self,image=self.show_grid_icon, state=DISABLED)
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.timeScaleFrame = Frame(self)
         self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel,
@@ -364,11 +362,9 @@ class ControlBar(Frame):
         self.currentTimeLabel.pack(side=RIGHT)
         self.timeslider.pack(side=RIGHT, fill=X, expand=1)
 
-        #packing
         self.timeScaleFrame.pack(side=TOP, fill=X, expand=1)
         self.play.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
-        # self.pause.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.stop.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.speedup.pack(side=LEFT, fill=Y, padx=1, pady=3)
@@ -380,10 +376,6 @@ class ControlBar(Frame):
         self.ibackword.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.iforward.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
-
-        self.set_grid.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
-
         self.fullsc.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.volslider.pack(side=LEFT, expand=TRUE, anchor=E, padx=1, pady=3)
@@ -401,8 +393,6 @@ class ControlBar(Frame):
         self.on_pause()
 
     def CalcTime(self, cur_val):
-        # mval = "%.0f" % (cur_val * 1000)
-        # nval = (int(mval)) // 1000 #in seconds
         HH = cur_val // 3600
         MM = cur_val // 60
         SS = cur_val % 60
@@ -619,10 +609,6 @@ class SideBar(Frame):
             self.calibrate_button = Button(self, image=self.calibrate_icon, state=DISABLED)
             self.calibrate_button.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
 
-            # self.event_manager_icon = PhotoImage(file='./media/event_manager.png')
-            # self.eventManagerButton = Button(self, image=self.event_manager_icon, command=self.parent.parent.on_event_manager_button_click)
-            # self.eventManagerButton.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
-
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
@@ -699,7 +685,7 @@ class MenuBar(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-
+        self.about_window = None
         self.menu = Menu(self)
 
         file_menu = Menu(self.menu, tearoff=0)
@@ -723,12 +709,19 @@ class MenuBar(Frame):
         self.menu.add_cascade(label="Help", menu=help_menu)
 
     def help_about(self):
-        window = Toplevel(self.parent.parent)
-        labelframe = LabelFrame(window, text="About Poke-A-Bird")
-        labelframe.pack(fill="both", expand="yes")
-        Label(labelframe, text="Nerya Meshulam\nElad Yacovi", width=20, height=10).pack()
-        Button(window, text="OK", width=5, command=window.destroy).pack()
-        window.wait_window()
+        if self.about_window:
+            return
+        self.about_window = Toplevel(self.parent.parent)
+        self.about_window.resizable(0, 0)
+        self.about_window.geometry("400x415")
+        tau_logo = PhotoImage(file='./media/tau.png')
+        Label(self.about_window, image=tau_logo).pack()
+        ttk.Separator(self.about_window, orient=HORIZONTAL).pack(fill=X, pady=5)
+        
+        Label(self.about_window, justify=LEFT, anchor=W, text="Poke-A-Bird v0.1.1\n\nFinal Project 2018, Faculty of Engineering,\nTel Aviv University\n\nDeveloped by:\nElad Yacovi\nNerya Meshulam").pack(fill=X,padx=5)
+        Button(self.about_window, text="OK", width=5, command=self.about_window.destroy).pack( pady=10)
+        self.about_window.wait_window()
+        self.about_window = None
 
 
 
@@ -744,8 +737,6 @@ class MainApplication(Frame):
         def DisplayOnLabel(self, event):
             if event.widget == self.parent.control_bar.play:
                 self.status_label.config(text="Play/Pause")
-            # elif event.widget == self.parent.control_bar.pause:
-                # self.status_label.config(text="Pause")
             elif event.widget == self.parent.control_bar.stop:
                 self.status_label.config(text="Stop")
             elif event.widget == self.parent.control_bar.speedup:
@@ -766,8 +757,6 @@ class MainApplication(Frame):
                 self.status_label.config(text="Intelligent Fast Backward")
             elif event.widget == self.parent.control_bar.fullsc:
                 self.status_label.config(text="Full Screen")
-            elif event.widget == self.parent.control_bar.set_grid:
-                self.status_label.config(text="Set Grid")
             elif event.widget == self.parent.control_bar.volslider:
                 self.status_label.config(text="Volume: " + str(self.parent.control_bar.volslider.get()) + '%')
             elif event.widget == self.parent.side_bar.upper_bar.set_location_button:
@@ -816,8 +805,6 @@ class MainApplication(Frame):
         friendly_record = list.copy(record)
         friendly_record[0] = self.translate_timestamp_to_clock(friendly_record[0])
         friendly_record[1] = self.translate_timestamp_to_clock(friendly_record[1])
-        # friendly_record[2] = ", ".join(friendly_record[2])
-        # friendly_record[3] = ", ".join(friendly_record[3])
         return friendly_record 
 
     def add_item(self, video_timestamp, session_timestamp, identities,events ,description, pos_x, pos_y, attribute):
@@ -851,17 +838,6 @@ class MainApplication(Frame):
 
     def on_export_events(self):
         raise Exception()
-        # p = pathlib.Path(os.path.expanduser(configuration.config['last_export_path']))
-        # fullname = asksaveasfilename(initialdir = p, title = "Export As",filetypes = (("CSV file (*.csv)","*.csv"),("All files (*)","*.*")))
-        # if fullname == '':
-        #     return
-        # export_path = pathlib.Path(fullname)
-        # if pathlib.Path(control_block.current_media_hash + '.csv').is_file():
-        #     copyfile(str(control_block.current_media_hash + '.csv'), fullname)
-        # with open(export_path, "a") as events_file:
-        #     csv.writer(events_file, delimiter=',').writerows(control_block.events)
-
-        # configuration.config['last_export_path'] = os.path.dirname(fullname)
 
     def on_exit(self):
         configuration.config['main_application']['size_x'] = self.winfo_width()
@@ -878,6 +854,7 @@ class MainApplication(Frame):
             return
         if messagebox.askokcancel("Reset Session", 'Are you sure you wish to continue?'):
             self.dump_events_to_file()
+            control_block.cached['total_number_of_events'] = 0
             if self.event_manager:
                 self.event_manager.on_media_stop()
             self.side_bar.on_reset()
@@ -892,7 +869,6 @@ class MainApplication(Frame):
                 csv.writer(events_file, delimiter=',').writerow(item)
 
         control_block.events.clear()
-        control_block.cached['total_number_of_events'] = 0
         
 if __name__ == "__main__":
     root = Tk()
