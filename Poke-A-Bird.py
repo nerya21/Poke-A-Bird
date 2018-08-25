@@ -14,6 +14,7 @@ import csv
 from threading import Thread, Event
 import tkinter.ttk as ttk
 import datetime
+import time
 
 class ControlBlock:
     events = []
@@ -335,10 +336,10 @@ class ControlBar(Frame):
         self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.on_play)
         self.stop_icon = PhotoImage(file='./media/stop.png')
         self.stop = Button(self, image=self.stop_icon, command=self.parent.playback_panel.on_stop)
-        self.previous_frame_icon = PhotoImage(file='./media/previous_frame.png')
-        self.previous_frame = Button(self, image=self.previous_frame_icon, state=DISABLED)
+        # self.previous_frame_icon = PhotoImage(file='./media/previous_frame.png')
+        # self.previous_frame = Button(self, image=self.previous_frame_icon, state=DISABLED)
         self.next_frame_icon = PhotoImage(file='./media/next_frame.png')
-        self.next_frame = Button(self, image=self.next_frame_icon, state=DISABLED)
+        self.next_frame = Button(self, image=self.next_frame_icon, command=self.parent.playback_panel.on_next_frame)
         self.speedup_icon = PhotoImage(file='./media/speed_up.png')
         self.speedup = Button(self, image=self.speedup_icon, command=self.parent.playback_panel.on_speed_up)
         self.speeddown_icon = PhotoImage(file='./media/speed_down.png')
@@ -369,7 +370,7 @@ class ControlBar(Frame):
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.speedup.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.speeddown.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        self.previous_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        # self.previous_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.next_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.zoomin.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.zoomout.pack(side=LEFT, fill=Y, padx=1, pady=3)
@@ -447,16 +448,39 @@ class PlaybackPanel(Frame):
         self.player.video_set_key_input(False)
         self.bind('<Button-1>', self.on_click)
 
+    def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
+        video_size_x, video_size_y = window_x, window_y
+        
+        if window_x / video_res_x > window_y / video_res_y:
+            video_size_x = window_y * video_res_x / video_res_y
+        else:
+            video_size_y = window_x * video_res_y / video_res_x
+            
+        rel_click_x = (click_x - (abs(window_x - video_size_x) / 2)) / video_size_x
+        rel_click_y = (click_y - (abs(window_y - video_size_y) / 2)) / video_size_y
+
+        if rel_click_x < 0 or rel_click_x > 1:
+            rel_click_x = -1
+        if rel_click_y < 0 or rel_click_y > 1:
+            rel_click_y = -1
+
+        return rel_click_x, rel_click_y
+
     def on_click(self, event):
         if not self.parent.side_bar.is_clock_set():
             return
         if not self.parent.side_bar.is_location_set():
             return
+
+        relative_click = self.get_relative_location(event.x, event.y, self.winfo_width(), self.winfo_height(), self.player.video_get_width(), self.player.video_get_height())
+        if relative_click[0] == -1 or relative_click[1] == -1:
+            return
+            
         identities = ", ".join(self.parent.side_bar.identity.get_selected_items())
         events = ", ".join(self.parent.side_bar.events.get_selected_items())
         if len(events) == 0:
             return
-        self.parent.add_item(self.player.get_time(),self.player.get_time()-control_block.cached['session_timestamp']['value'],identities,events,self.parent.side_bar.description.get_and_clear(), event.x, event.y,'')
+        self.parent.add_item(self.player.get_time(),self.player.get_time()-control_block.cached['session_timestamp']['value'],identities,events,self.parent.side_bar.description.get_and_clear(), relative_click[0], relative_click[1],'')
 
     def on_pause(self):
         self.player.pause()
@@ -513,6 +537,9 @@ class PlaybackPanel(Frame):
         dbl = curtime * 0.001
         self.parent.control_bar.timeslider_last_val = dbl
         self.parent.control_bar.timeslider.set(dbl)
+
+    def on_next_frame(self):
+        self.player.next_frame()
 
     def on_speed_up(self):
         if self.player.get_rate() == 0.25:
@@ -585,8 +612,13 @@ class PlaybackPanel(Frame):
         return self.player.get_time()
 
     def goto_timestamp(self, timestamp):
-        self.parent.playback_panel.on_pause()
+        # self.parent.playback_panel.on_pause()
+        # self.parent.playback_panel.player.set_time(timestamp)
+        self.parent.playback_panel.player.play()
         self.parent.playback_panel.player.set_time(timestamp)
+        time.sleep(0.5)
+
+        self.parent.playback_panel.player.pause()
 
     def get_video_name(self):
         return self.player.get_title()
@@ -743,8 +775,8 @@ class MainApplication(Frame):
                 self.status_label.config(text="Speed Up")
             elif event.widget == self.parent.control_bar.speeddown:
                 self.status_label.config(text="Speed Down")
-            elif event.widget == self.parent.control_bar.previous_frame:
-                self.status_label.config(text="Previous Frame")
+            # elif event.widget == self.parent.control_bar.previous_frame:
+                # self.status_label.config(text="Previous Frame")
             elif event.widget == self.parent.control_bar.next_frame:
                 self.status_label.config(text="Next Frame")
             elif event.widget == self.parent.control_bar.zoomin:
