@@ -634,10 +634,10 @@ class PlaybackPanel(Frame):
             video_size_x = window_y * video_res_x / video_res_y
         else:
             video_size_y = window_x * video_res_y / video_res_x
-            
+        #print(str(click_x) + ' ' + str(click_y))
         rel_click_x = (click_x - (abs(window_x - video_size_x) / 2)) / video_size_x
         rel_click_y = (click_y - (abs(window_y - video_size_y) / 2)) / video_size_y
-
+        asdasd = self.player.video_get_aspect_ratio()
         if rel_click_x < 0 or rel_click_x > 1:
             rel_click_x = -1
         if rel_click_y < 0 or rel_click_y > 1:
