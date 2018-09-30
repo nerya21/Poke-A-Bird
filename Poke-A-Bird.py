@@ -1488,7 +1488,7 @@ class MainApplication(Frame):
         record = [video_timestamp, session_timestamp, identities,events,description , pos_x, pos_y, attribute ]
         if len(control_block.events) >= configuration.config['event_manager']['number_of_events']:
             old_record = control_block.events.pop(0)
-            with open(control_block.cached['export_location']['value'], "a") as events_file:
+            with open(control_block.cached['export_location']['value'], "a", encoding='utf-8') as events_file:
                 csv.writer(events_file, delimiter=',').writerow(self.translate_to_friendly_record(old_record))
             if self.event_manager:
                 self.event_manager.refresh_events()
