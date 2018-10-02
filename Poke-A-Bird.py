@@ -614,7 +614,7 @@ class PlaybackPanel(Frame):
         self.is_grid_set = False
 
         #video vars
-        self.vlc_instance = vlc.Instance() # self.vlc_instance = vlc.Instance('--no-ts-trust-pcr','--ts-seek-percent')
+        self.vlc_instance = vlc.Instance('--play-and-pause') # self.vlc_instance = vlc.Instance('--no-ts-trust-pcr','--ts-seek-percent')
         self.player = self.vlc_instance.media_player_new()
         self.filename = None
 
@@ -624,9 +624,13 @@ class PlaybackPanel(Frame):
         self.player.video_set_key_input(False)
         self.bind('<Button-1>', self.on_click)
         self.parent.side_bar.upper_bar.calibrate_button.config(command=self.on_set_grid)
-
+		self.events = self.player.event_manager()
+        self.events.event_attach(vlc.EventType.MediaPlayerEndReached, self.EventManager)
     # -------------------------- Video Functions -----------------------------------
-
+    def EventManager(self, event):
+        if event.type == vlc.EventType.MediaPlayerEndReached:
+            self.parent.control_bar.on_pause()
+			
     def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
         video_size_x, video_size_y = window_x, window_y
         
@@ -634,7 +638,7 @@ class PlaybackPanel(Frame):
             video_size_x = window_y * video_res_x / video_res_y
         else:
             video_size_y = window_x * video_res_y / video_res_x
-            
+
         rel_click_x = (click_x - (abs(window_x - video_size_x) / 2)) / video_size_x
         rel_click_y = (click_y - (abs(window_y - video_size_y) / 2)) / video_size_y
 
@@ -690,8 +694,12 @@ class PlaybackPanel(Frame):
         if not self.player.get_media():
             self.on_open()
         else:
+            print(self.player.get_state())
+            if self.player.get_state() == vlc.State.Ended:
+               self.player.set_media(self.media)
             if self.player.play() == -1:
                 self.error_dialog("Unable to play.")
+            print(self.player.get_state())
             self.parent.control_bar.on_play()
             self.parent.side_bar.on_play()
 
@@ -704,8 +712,8 @@ class PlaybackPanel(Frame):
             filename = os.path.basename(fullname)
             self.filename = filename
             configuration.config['last_path'] = dirname
-            media = self.vlc_instance.media_new(str(os.path.join(dirname, filename)))
-            self.player.set_media(media)
+            self.media = self.vlc_instance.media_new(str(os.path.join(dirname, filename)))
+            self.player.set_media(self.media)
             control_block.current_media_hash = md5(fullname)
             control_block.load_cache()
             if self.parent.event_manager:
