@@ -628,7 +628,7 @@ class PlaybackPanel(Frame):
         self.events.event_attach(vlc.EventType.MediaPlayerEndReached, self.EventManager)
     # -------------------------- Video Functions -----------------------------------
     def EventManager(self, event):
-        if event.type == vlc.EventType.MediaPlayerEndReached:
+        if event.type == vlc.EventType.MediaPlayerPaused:
             self.parent.control_bar.on_pause()
 			
     def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
@@ -695,11 +695,14 @@ class PlaybackPanel(Frame):
             self.on_open()
         else:
             print(self.player.get_state())
-            if self.player.get_state() == vlc.State.Ended:
-               self.player.set_media(self.media)
+            # if self.player.get_state() == vlc.State.Ended:
+            #    self.player.set_media(self.media)
             if self.player.play() == -1:
                 self.error_dialog("Unable to play.")
             print(self.player.get_state())
+            if self.player.get_state() == vlc.State.Ended:
+               self.player.set_media(self.media)
+               self.player.play()
             self.parent.control_bar.on_play()
             self.parent.side_bar.on_play()
 
