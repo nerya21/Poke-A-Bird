@@ -1,3 +1,25 @@
+"""
+Copyright (c) 2018 Elad Yacovi, Nerya Meshulam
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
 import hashlib
 import json
 from shutil import copyfile
@@ -18,7 +40,7 @@ import time
 import PIL #need to install the package "Pillow"
 from PIL import Image
 
-# -------------- Constants ------------------
+__version__ = '1.0'
 GRID_POINT_WIDTH = 10
 GRID_LINE_WIDTH = 5
 # -------------------------------------------
@@ -460,6 +482,16 @@ class ListBox(Frame):
             items.append(self.list.listbox.get(item))
         return items
 
+    def clear_all(self):
+        self.list.listbox.selection_clear(0, END)
+
+    def mark_unmark_item(self, event):
+        if event.keycode in range(ord('1'), ord('9') + 1):
+            index = event.keycode - ord('1')
+            if index >= 0 and index < self.list.listbox.size():
+                self.clear_all()
+                self.list.listbox.select_set(index)
+
     def __init__(self, parent, attribute, title, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
@@ -512,7 +544,7 @@ class ControlBar(Frame):
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.timeScaleFrame = Frame(self)
         self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel,
-                                   from_=0, to=1000, orient=HORIZONTAL, length=100, resolution=0.001, showvalue=0)
+                                   from_=0, to=1000, orient=HORIZONTAL, length=100, resolution=0.00001, showvalue=0)
         self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00", width=6)
         self.currentTimeLabel.pack(side=RIGHT)
         self.timeslider.pack(side=RIGHT, fill=X, expand=1)
@@ -625,12 +657,11 @@ class PlaybackPanel(Frame):
         self.bind('<Button-1>', self.on_click)
         self.parent.side_bar.upper_bar.calibrate_button.config(command=self.on_set_grid)
 		self.events = self.player.event_manager()
-        self.events.event_attach(vlc.EventType.MediaPlayerEndReached, self.EventManager)
+        self.events.event_attach(vlc.EventType.MediaPlayerPaused, self.EventManager)
     # -------------------------- Video Functions -----------------------------------
     def EventManager(self, event):
         if event.type == vlc.EventType.MediaPlayerPaused:
             self.parent.control_bar.on_pause()
-			
     def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
         video_size_x, video_size_y = window_x, window_y
         
@@ -690,16 +721,18 @@ class PlaybackPanel(Frame):
         self.parent.control_bar.on_stop()
         self.parent.side_bar.on_stop()
 
+    def on_play_pause(self, event=None):
+        if self.player.get_state() == vlc.State.Paused:
+            self.on_play()
+        elif self.player.get_state() == vlc.State.Playing:
+            self.on_pause()
+
     def on_play(self):
         if not self.player.get_media():
             self.on_open()
         else:
-            print(self.player.get_state())
-            # if self.player.get_state() == vlc.State.Ended:
-            #    self.player.set_media(self.media)
             if self.player.play() == -1:
                 self.error_dialog("Unable to play.")
-            print(self.player.get_state())
             if self.player.get_state() == vlc.State.Ended:
                self.player.set_media(self.media)
                self.player.play()
@@ -739,8 +772,9 @@ class PlaybackPanel(Frame):
         self.parent.control_bar.timeslider_last_val = dbl
         self.parent.control_bar.timeslider.set(dbl)
 
-    def on_next_frame(self):
+    def on_next_frame(self, event=None):
         self.player.next_frame()
+        # self.player.set_time(self.player.get_time() + 100)
 
     def on_speed_up(self):
         if self.player.get_rate() == 0.25:
@@ -757,6 +791,12 @@ class PlaybackPanel(Frame):
         else:
             self.player.set_rate(self.player.get_rate() - 0.1)
         self.set_text_on_screen("Speed: {:0>.2f}".format(self.player.get_rate()))
+
+    def on_speed_change(self, event):
+        if event.delta < 0:
+            self.on_speed_down()
+        else:
+            self.on_speed_up()
 
     def on_zoom_in(self):
         if (self.player.video_get_scale() == 0.0):
@@ -1481,6 +1521,7 @@ class MainApplication(Frame):
         self.playback_panel.grid(row=0, column=0, sticky=NSEW)
         self.status_bar.grid(row=2, columnspan=2, sticky=EW)
 
+        self.register_hotkeys()
         self.bind_all('<Enter>', self.status_bar.DisplayOnLabel)
 
     def JumpToTime(self, d_time):
@@ -1518,7 +1559,7 @@ class MainApplication(Frame):
         else:
             self.event_manager.on_closing()
 
-    def on_open_event_manager_menu_click(self):
+    def on_open_event_manager_menu_click(self, event=None):
         if not self.event_manager:
             self.event_manager = EventManager(self, takefocus=True)
 
@@ -1557,7 +1598,22 @@ class MainApplication(Frame):
                 csv.writer(events_file, delimiter=',').writerow(item)
 
         control_block.events.clear()
-        
+
+    def register_hotkeys(self):
+        self.bind_all("<Control-Key>", self.side_bar.events.mark_unmark_item)
+        self.bind_all("<Shift-Key>", self.side_bar.identity.mark_unmark_item)
+        self.bind_all("<MouseWheel>", self.playback_panel.on_speed_change)
+        self.bind_all("<space>", self.playback_panel.on_play_pause)
+        self.bind_all("<Control-Key-e>", self.on_open_event_manager_menu_click)
+        self.bind_all("<Right>", self.playback_panel.on_next_frame)
+
+def callback(event):
+    print(event.char)
+    print(event.keysym)
+    print(event.keycode)
+    print(event.type)
+    print('asdasd')
+
 if __name__ == "__main__":
     root = Tk()
     root.minsize(width=988, height=551)
@@ -1565,7 +1621,6 @@ if __name__ == "__main__":
     root.iconbitmap('./media/bird.ico')
     #root.attributes('-fullscreen', True) #force fullscreen
     #root.state('zoomed') #force zoom
-
     configuration = Configuration()
     control_block = ControlBlock()
 
