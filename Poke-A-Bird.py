@@ -41,6 +41,7 @@ import PIL #need to install the package "Pillow"
 from PIL import Image
 
 __version__ = '1.0'
+
 GRID_POINT_WIDTH = 10
 GRID_LINE_WIDTH = 5
 # -------------------------------------------
@@ -656,7 +657,7 @@ class PlaybackPanel(Frame):
         self.player.video_set_key_input(False)
         self.bind('<Button-1>', self.on_click)
         self.parent.side_bar.upper_bar.calibrate_button.config(command=self.on_set_grid)
-		self.events = self.player.event_manager()
+        self.events = self.player.event_manager()
         self.events.event_attach(vlc.EventType.MediaPlayerPaused, self.EventManager)
     # -------------------------- Video Functions -----------------------------------
     def EventManager(self, event):
@@ -703,8 +704,7 @@ class PlaybackPanel(Frame):
             return
         #print("(%d, %d)" % (cell[0], cell[1])) #put it to the event manager
         attribute_on_cell = "None" if (len(self.grid_attributes) == 0 or self.grid_attributes[cell[0]] == None or self.grid_attributes[cell[0]][cell[1]] == None) else self.grid_attributes[cell[0]][cell[1]]
-        attribute_to_write = "(%d, %d): %s" % (cell[0], cell[1], attribute_on_cell)
-        self.parent.add_item(self.player.get_time(),self.player.get_time()-control_block.cached['session_timestamp']['value'],identities,events,self.parent.side_bar.description.get_and_clear(), relative_click[0], relative_click[1], attribute_to_write)
+        self.parent.add_item(self.player.get_time(),self.player.get_time()-control_block.cached['session_timestamp']['value'],identities,events,self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
 
     def on_pause(self):
         self.player.pause()
@@ -742,7 +742,7 @@ class PlaybackPanel(Frame):
     def on_open(self):
         self.on_stop()
         p = pathlib.Path(os.path.expanduser(configuration.config['last_path']))
-        fullname = askopenfilename(initialdir = p, title = "choose your file",filetypes = (("all files","*.*"),("mp4 files","*.mp4")))
+        fullname = askopenfilename(initialdir = p, title = "Select media",filetypes = (("All Files","*.*"),("MP4 Video","*.mp4"),("AVCHD Video","*.mts")))
         if os.path.isfile(fullname):
             dirname = os.path.dirname(fullname)
             filename = os.path.basename(fullname)
@@ -872,10 +872,12 @@ class PlaybackPanel(Frame):
         else:
             if self.player.get_state() == vlc.State.Playing:
                 self.on_pause()
+                time.sleep(2)
             if self.grid_window == None:
                 self.parent.side_bar.upper_bar.calibrate_button.config(relief=RAISED)
                 self.is_grid_set = False
                 self.player.video_take_snapshot(0, 'snapshot.tmp.png', 0, 0)
+                print("asdasdasd")
                 self.grid_window = Toplevel(self.parent.parent)
                 self.grid_window.title("Grid Calibration: Top Left")
                 baseheight = self.winfo_height() + 10
@@ -923,7 +925,7 @@ class PlaybackPanel(Frame):
             self.grid_label.config(text="Bottom Right")
         elif len(self.grid_borders) == 3:
             self.grid_window.title("Grid Calibration: Bottom Left")
-            self.grid_label.config(text="Bottom Left")
+            self.grid_label.config(text="Bottom Left") 
         elif len(self.grid_borders) == 4 or not eventExist: #if we have 4 points for the grid, or got here from cache load
             self.grid_label.config(text="Outer Borders")
             self.grid_window.title("Grid Calibration")
@@ -1394,16 +1396,14 @@ class SideBar(Frame):
             return
         if not self.parent.playback_panel.is_media_loaded():
             return
-        p = pathlib.Path(os.path.expanduser(configuration.config['last_export_path']))
-        # fullname = asksaveasfilename(initialfile = self.parent.playback_panel.get_video_name() + '.csv',initialdir = p, title = "Export As",filetypes = (("CSV file (*.csv)","*.csv"),("All files (*)","*.*")))
-        fullname = asksaveasfilename(initialdir = p, title = "Export As",filetypes = (("CSV file (*.csv)","*.csv"),("All files (*)","*.*")))
-        # if fullname == '':
-        #     return
-        # if pathlib.Path(fullname).is_file():
-        #     pass #TODO: handle file exist
+        last_export_path = pathlib.Path(os.path.expanduser(configuration.config['last_export_path']))
+        full_path = asksaveasfilename(initialdir = last_export_path, title = "Set Export Location",filetypes = [("CSV File (*.csv)","*.csv")])
+        if not full_path.endswith('.csv'):
+            full_path += '.csv'
+
         control_block.cached['export_location']['is_set'] = 1
-        control_block.cached['export_location']['value'] = fullname + '.csv'
-        configuration.config['last_export_path'] = os.path.dirname(fullname + '.csv')
+        control_block.cached['export_location']['value'] = full_path
+        configuration.config['last_export_path'] = os.path.dirname(full_path)
         self.upper_bar.set_location_button.config(relief=SUNKEN)
 
     def is_location_set(self):
@@ -1594,7 +1594,7 @@ class MainApplication(Frame):
                 raise Exception()
             return
         for item in control_block.events:
-            with open(control_block.cached['export_location']['value'], "a") as events_file:
+            with open(control_block.cached['export_location']['value'], "a", encoding='utf-8') as events_file:
                 csv.writer(events_file, delimiter=',').writerow(item)
 
         control_block.events.clear()
