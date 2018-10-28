@@ -40,7 +40,7 @@ import time
 import PIL #need to install the package "Pillow"
 from PIL import Image
 
-__version__ = '1.0'
+__version__ = '0.3'
 
 GRID_POINT_WIDTH = 10
 GRID_LINE_WIDTH = 5
