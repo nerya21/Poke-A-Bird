@@ -647,7 +647,7 @@ class PlaybackPanel(Frame):
         self.is_grid_set = False
 
         #video vars
-        self.vlc_instance = vlc.Instance('--play-and-pause') # self.vlc_instance = vlc.Instance('--no-ts-trust-pcr','--ts-seek-percent')
+        self.vlc_instance = vlc.Instance() # self.vlc_instance = vlc.Instance('--no-ts-trust-pcr','--ts-seek-percent')
         self.player = self.vlc_instance.media_player_new()
         self.filename = None
 
@@ -658,11 +658,12 @@ class PlaybackPanel(Frame):
         self.bind('<Button-1>', self.on_click)
         self.parent.side_bar.upper_bar.calibrate_button.config(command=self.on_set_grid)
         self.events = self.player.event_manager()
-        self.events.event_attach(vlc.EventType.MediaPlayerPaused, self.EventManager)
+        self.events.event_attach(vlc.EventType.MediaPlayerEndReached, self.EventManager)
     # -------------------------- Video Functions -----------------------------------
     def EventManager(self, event):
-        if event.type == vlc.EventType.MediaPlayerPaused:
+        if event.type == vlc.EventType.MediaPlayerEndReached:
             self.parent.control_bar.on_pause()
+
     def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
         video_size_x, video_size_y = window_x, window_y
         
@@ -731,11 +732,12 @@ class PlaybackPanel(Frame):
         if not self.player.get_media():
             self.on_open()
         else:
-            if self.player.play() == -1:
-                self.error_dialog("Unable to play.")
             if self.player.get_state() == vlc.State.Ended:
                self.player.set_media(self.media)
-               self.player.play()
+            if self.player.play() == -1:
+                self.error_dialog("Unable to play.")
+
+            #    self.player.play()
             self.parent.control_bar.on_play()
             self.parent.side_bar.on_play()
 
@@ -1446,7 +1448,7 @@ class MenuBar(Frame):
         Label(self.about_window, image=tau_logo).pack()
         ttk.Separator(self.about_window, orient=HORIZONTAL).pack(fill=X, pady=5)
         
-        Label(self.about_window, justify=LEFT, anchor=W, text="Poke-A-Bird v0.1.1\n\nFinal Project 2018, Faculty of Engineering,\nTel Aviv University\n\nDeveloped by:\nElad Yacovi\nNerya Meshulam").pack(fill=X,padx=5)
+        Label(self.about_window, justify=LEFT, anchor=W, text="Poke-A-Bird v" + __version__ + "\n\nFinal Project 2018, Faculty of Engineering,\nTel Aviv University\n\nDeveloped by:\nElad Yacovi\nNerya Meshulam").pack(fill=X,padx=5)
         Button(self.about_window, text="OK", width=5, command=self.about_window.destroy).pack( pady=10)
         self.about_window.wait_window()
         self.about_window = None
