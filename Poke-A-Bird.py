@@ -37,7 +37,7 @@ from threading import Thread, Event
 import tkinter.ttk as ttk
 import datetime
 import time
-import PIL #need to install the package "Pillow"
+import PIL
 from PIL import Image
 
 __version__ = '0.3'
@@ -456,26 +456,28 @@ class ListBox(Frame):
             configuration.config[self.attribute].remove(self.list.listbox.get(current_selection))
             self.list.listbox.delete(current_selection)
 
-    def close_popup(self, window, clicked):
-        clicked[0] = True
-        window.grab_release()
-        window.destroy()
+    def ok_clicked(self, event=None):
+        if self.entryStr.get() != '':
+            self.list.listbox.insert(END, self.entryStr.get())
+        self.window.destroy()
+
+    def close(self, event=None):
+        self.window.destroy()
 
     def add_item(self):
-        window = Toplevel(self.parent.parent.parent, borderwidth=5)
+        self.window = window = Toplevel(self.parent.parent.parent, borderwidth=5)
         window.grab_set()
         window.title('Add '+ self.title)
         window.resizable(0, 0)
-        entryStr = StringVar()
+        self.entryStr = entryStr = StringVar()
         Label(window, text='Name: ').grid(row=0, column=0)
-        Entry(window, textvariable=entryStr, width=20).grid(row=0, column=1)
-        clicked = [False]
-        Button(window, text="Add", width=5, command=lambda: self.close_popup(window, clicked)).grid(row=1, column=0, columnspan=2, pady=2)
-        # window.bind('<Enter>', self.close_popup(window, clicked))
+        self.entry = Entry(window, textvariable=entryStr, width=20)
+        self.entry.grid(row=0, column=1)
+        self.entry.focus_set()
+        Button(window, text="Add", width=5, command=self.ok_clicked).grid(row=1, column=0, columnspan=2, pady=2)
+        window.bind('<Return>', self.ok_clicked)
+        window.bind('<Escape>', self.close)
         window.wait_window()
-        if (clicked[0] and entryStr.get() != ""):
-            configuration.config[self.attribute].append(entryStr.get())
-            self.list.listbox.insert(END, entryStr.get())
 
     def get_selected_items(self):
         items = []
