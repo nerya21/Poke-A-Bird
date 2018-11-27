@@ -199,7 +199,8 @@ class ControlBlock:
     cached = {}
     default_cache = {'total_number_of_events': 0,
                      'session_timestamp': {'is_set': 0, 'value': 0},
-                     'export_location': {'is_set': 0, 'value': ''}}
+                     'export_location': {'is_set': 0, 'value': ''},
+                     'media_name': ''}
 
     def dump_cache(self):
         if control_block.current_media_hash != '':
@@ -756,6 +757,7 @@ class PlaybackPanel(Frame):
             self.player.set_media(self.media)
             control_block.current_media_hash = md5(fullname)
             control_block.load_cache()
+            control_block.cached['media_name'] = filename
             if self.parent.event_manager:
                 self.parent.event_manager.on_media_open()
 
@@ -1409,6 +1411,8 @@ class SideBar(Frame):
         control_block.cached['export_location']['value'] = full_path
         configuration.config['last_export_path'] = os.path.dirname(full_path)
         self.upper_bar.set_location_button.config(relief=SUNKEN)
+        with open(control_block.cached['export_location']['value'], "a", encoding='utf-8', newline='') as events_file:
+            csv.writer(events_file, delimiter=',').writerow(['Video Time', 'Session Time', 'Birds', 'Events', 'Description', 'Column', 'Row', 'Attribute', 'File Name', 'Media Name'])
 
     def is_location_set(self):
         return control_block.cached['export_location']['is_set'] == 1
@@ -1539,13 +1543,21 @@ class MainApplication(Frame):
         friendly_record[0] = self.translate_timestamp_to_clock(friendly_record[0])
         friendly_record[1] = self.translate_timestamp_to_clock(friendly_record[1])
         return friendly_record 
+    
+    def write_record_to_csv(self, record):
+        line = self.translate_to_friendly_record(record)
+        line += [os.path.basename(control_block.cached['export_location']['value'])]
+        line += [control_block.cached['media_name']]
+        with open(control_block.cached['export_location']['value'], "a", encoding='utf-8', newline='') as events_file:
+            csv.writer(events_file, delimiter=',').writerow(line)
 
     def add_item(self, video_timestamp, session_timestamp, identities,events ,description, pos_x, pos_y, attribute):
         record = [video_timestamp, session_timestamp, identities,events,description , pos_x, pos_y, attribute ]
         if len(control_block.events) >= configuration.config['event_manager']['number_of_events']:
             old_record = control_block.events.pop(0)
-            with open(control_block.cached['export_location']['value'], "a", encoding='utf-8') as events_file:
-                csv.writer(events_file, delimiter=',').writerow(self.translate_to_friendly_record(old_record))
+            self.write_record_to_csv(old_record)
+            # with open(control_block.cached['export_location']['value'], "a", encoding='utf-8') as events_file:
+            #     csv.writer(events_file, delimiter=',').writerow(self.translate_to_friendly_record(old_record))
             if self.event_manager:
                 self.event_manager.refresh_events()
 
@@ -1592,14 +1604,14 @@ class MainApplication(Frame):
                 self.event_manager.on_media_stop()
             self.side_bar.on_reset()
 
+
     def dump_events_to_file(self):
         if not self.side_bar.is_location_set():
             if len(control_block.events) > 0:
                 raise Exception()
             return
         for item in control_block.events:
-            with open(control_block.cached['export_location']['value'], "a", encoding='utf-8') as events_file:
-                csv.writer(events_file, delimiter=',').writerow(item)
+            self.write_record_to_csv(item)
 
         control_block.events.clear()
 
