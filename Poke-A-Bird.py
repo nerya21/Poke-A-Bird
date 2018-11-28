@@ -39,6 +39,7 @@ import datetime
 import time
 import PIL
 from PIL import Image
+from pandas import to_datetime
 
 __version__ = '0.3'
 
@@ -548,8 +549,8 @@ class ControlBar(Frame):
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.timeScaleFrame = Frame(self)
         self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel,
-                                   from_=0, to=1000, orient=HORIZONTAL, length=100, resolution=0.00001, showvalue=0)
-        self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00", width=6)
+                                   from_=0, to=1000, orient=HORIZONTAL, length=100, resolution=0.00000001, showvalue=0)
+        self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00.000", width=9)
         self.currentTimeLabel.pack(side=RIGHT)
         self.timeslider.pack(side=RIGHT, fill=X, expand=1)
 
@@ -583,11 +584,8 @@ class ControlBar(Frame):
     def on_stop(self):
         self.on_pause()
 
-    def CalcTime(self, cur_val):
-        HH = cur_val // 3600
-        MM = cur_val // 60
-        SS = cur_val % 60
-        self.currentTimeLabel.config(text="{:>02d}:{:>02d}:{:>02d}".format(HH,MM,SS))
+    def update_time_label(self, seconds):
+        self.currentTimeLabel.config(text=self.parent.translate_timestamp_to_clock(seconds))
 
 class Description(Frame):
 
@@ -692,6 +690,8 @@ class PlaybackPanel(Frame):
             return
         if not self.is_grid_set:
             return
+        if self.player.get_time() < 0:
+            return
 
         relative_click = self.get_relative_location(event.x, event.y, self.winfo_width(), self.winfo_height(),
                                                     self.winfo_screenwidth(), self.winfo_screenheight())
@@ -708,7 +708,10 @@ class PlaybackPanel(Frame):
             return
         #print("(%d, %d)" % (cell[0], cell[1])) #put it to the event manager
         attribute_on_cell = "None" if (len(self.grid_attributes) == 0 or self.grid_attributes[cell[0]] == None or self.grid_attributes[cell[0]][cell[1]] == None) else self.grid_attributes[cell[0]][cell[1]]
-        self.parent.add_item(self.player.get_time(),self.player.get_time()-control_block.cached['session_timestamp']['value'],identities,events,self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
+        session_timestamp = self.player.get_time()-control_block.cached['session_timestamp']['value']
+        if session_timestamp < 0:
+            return
+        self.parent.add_item(self.player.get_time(),session_timestamp,identities,events,self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
 
     def on_pause(self):
         self.player.pause()
@@ -826,7 +829,7 @@ class PlaybackPanel(Frame):
 
     def scale_sel(self, evt):
         cur_val = self.parent.control_bar.scale_var.get()
-        self.parent.control_bar.CalcTime(int(cur_val))
+        self.parent.control_bar.update_time_label(cur_val)
         if (math.fabs(cur_val - self.parent.control_bar.timeslider_last_val) > 1.5):
             self.parent.control_bar.timeslider_last_val = cur_val
             # mval = "%.0f" % (cur_val * 1000)
@@ -1535,13 +1538,16 @@ class MainApplication(Frame):
     def JumpToTime(self, d_time):
         self.control_bar.timeslider.set(d_time)
 
-    def translate_timestamp_to_clock(self, cur_val):
-        return datetime.timedelta(milliseconds=cur_val)
+    def translate_timestamp_to_clock(self, seconds):
+        HH = seconds // 3600
+        MM = seconds // 60
+        SS = seconds % 60
+        return "{:02.0f}:{:02.0f}:{:06.3f}".format(HH,MM,SS)
 
     def translate_to_friendly_record(self, record):
         friendly_record = list.copy(record)
-        friendly_record[0] = self.translate_timestamp_to_clock(friendly_record[0])
-        friendly_record[1] = self.translate_timestamp_to_clock(friendly_record[1])
+        friendly_record[0] = self.translate_timestamp_to_clock(friendly_record[0]/1000)
+        friendly_record[1] = self.translate_timestamp_to_clock(friendly_record[1]/1000)
         return friendly_record 
     
     def write_record_to_csv(self, record):
