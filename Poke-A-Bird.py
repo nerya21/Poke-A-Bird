@@ -439,6 +439,7 @@ class ListBox(Frame):
     def ok_clicked(self, event=None):
         if self.entryStr.get() != '':
             self.list.listbox.insert(END, self.entryStr.get())
+            configuration.config[self.attribute].append(self.entryStr.get())
             self.mark_item(END)
         self.window.destroy()
 
