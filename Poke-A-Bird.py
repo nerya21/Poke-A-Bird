@@ -235,6 +235,7 @@ class Configuration:
               'last_path':'%USERPROFILE%',
               'identity_list': [],
               'event_list': [],
+              'speed': 1,
               'event_manager': {'size_x': 300,
                                 'size_y': 300,
                                 'pos_x': 300,
@@ -807,6 +808,7 @@ class PlaybackPanel(Frame):
             self.player.play()
             self.parent.control_bar.on_play()
             self.parent.side_bar.on_play()
+            self.player.set_rate(configuration.config['speed'])
 
     def OnTimer(self):
         if self.player == None or self.player.get_time() == -1:
@@ -825,6 +827,9 @@ class PlaybackPanel(Frame):
         self.player.next_frame()
         # self.player.set_time(self.player.get_time() + 100)
 
+    def set_speed(self,speed):
+        self.player.set_rate(speed)
+
     def on_speed_up(self):
         if self.player.get_rate() == 0.25:
             self.player.set_rate(0.3)
@@ -833,6 +838,7 @@ class PlaybackPanel(Frame):
         else:
             self.player.set_rate(self.player.get_rate() + 0.1)
         self.set_text_on_screen("Speed: {:0>.2f}".format(self.player.get_rate()))
+        configuration.config['speed'] = self.player.get_rate()
 
     def on_speed_down(self):
         if self.player.get_rate() - 0.1 < 0.25:
@@ -840,6 +846,7 @@ class PlaybackPanel(Frame):
         else:
             self.player.set_rate(self.player.get_rate() - 0.1)
         self.set_text_on_screen("Speed: {:0>.2f}".format(self.player.get_rate()))
+        configuration.config['speed'] = self.player.get_rate()
 
     def on_speed_change(self, event):
         if event.delta < 0:
