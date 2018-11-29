@@ -519,7 +519,7 @@ class ControlBar(Frame):
         self.volume_var = IntVar()
         self.scale_var = DoubleVar() #time of the video scale var
         self.timeslider_last_val = 0.0
-        self.timer = ttkTimer(self.parent.playback_panel.OnTimer, 1.0)
+        self.timer = ttkTimer(self.parent.playback_panel.OnTimer, 0.001)
 
         #buttons and other widgets
         self.pause_icon = PhotoImage(file='./media/pause.png')
@@ -548,8 +548,8 @@ class ControlBar(Frame):
         self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.timeScaleFrame = Frame(self)
-        self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel,
-                                   from_=0, to=1000, orient=HORIZONTAL, length=100, resolution=0.00000001, showvalue=0)
+        self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel_without_media_update,
+                                   from_=0,orient=HORIZONTAL, resolution=-1, showvalue=0)
         self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00.000", width=9)
         self.currentTimeLabel.pack(side=RIGHT)
         self.timeslider.pack(side=RIGHT, fill=X, expand=1)
@@ -580,6 +580,12 @@ class ControlBar(Frame):
 
     def on_pause(self):
         self.play.configure(image=self.play_icon, command=self.parent.playback_panel.on_play)
+
+    def on_media_reached_end(self):
+        # self.timeslider.set(0)
+        self.on_pause()
+        # self.parent.playback_panel.on_media_reached_end()
+        # self.timeslider.set(0)
 
     def on_stop(self):
         self.on_pause()
@@ -663,7 +669,7 @@ class PlaybackPanel(Frame):
     # -------------------------- Video Functions -----------------------------------
     def EventManager(self, event):
         if event.type == vlc.EventType.MediaPlayerEndReached:
-            self.parent.control_bar.on_pause()
+            self.parent.control_bar.on_media_reached_end()
 
     def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
         video_size_x, video_size_y = window_x, window_y
@@ -712,6 +718,9 @@ class PlaybackPanel(Frame):
         if session_timestamp < 0:
             return
         self.parent.add_item(self.player.get_time(),session_timestamp,identities,events,self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
+
+    def on_media_reached_end(self):
+        self.player.set_time(0)
 
     def on_pause(self):
         self.player.pause()
@@ -769,17 +778,17 @@ class PlaybackPanel(Frame):
             self.parent.side_bar.on_play()
 
     def OnTimer(self):
-        if self.player == None:
+        if self.player == None or self.player.get_time() == -1:
             return
-        length = self.player.get_length()
-        dbl = length * 0.001
-        self.parent.control_bar.timeslider.config(to=dbl)
-        curtime = self.player.get_time()
-        if curtime == -1:
-            curtime = 0
-        dbl = curtime * 0.001
-        self.parent.control_bar.timeslider_last_val = dbl
-        self.parent.control_bar.timeslider.set(dbl)
+
+        self.parent.control_bar.timeslider.config(command=self.scale_sel_without_media_update, to=self.player.get_length())
+        # milliseconds = self.player.get_time()
+        # if self.player.get_time() == -1:
+        #     return
+        # dbl = milliseconds #* 0.001
+        # self.parent.control_bar.timeslider_last_val = dbl
+        self.parent.control_bar.timeslider.set(self.player.get_time())
+        self.parent.control_bar.timeslider.config(command=self.scale_sel)
 
     def on_next_frame(self, event=None):
         self.player.next_frame()
@@ -827,13 +836,22 @@ class PlaybackPanel(Frame):
         else:
             self.parent.parent.attributes('-fullscreen', False)
 
-    def scale_sel(self, evt):
-        cur_val = self.parent.control_bar.scale_var.get()
-        self.parent.control_bar.update_time_label(cur_val)
-        if (math.fabs(cur_val - self.parent.control_bar.timeslider_last_val) > 1.5):
-            self.parent.control_bar.timeslider_last_val = cur_val
+    def scale_sel_without_media_update(self, evt):
+        milliseconds = self.parent.control_bar.scale_var.get()
+        self.parent.control_bar.update_time_label(milliseconds/1000)
+        # if (math.fabs(milliseconds - self.parent.control_bar.timeslider_last_val) > (1.5/1000)):
+            # self.parent.control_bar.timeslider_last_val = milliseconds
             # mval = "%.0f" % (cur_val * 1000)
-            self.player.set_time(int(cur_val*1000)) # expects milliseconds
+
+
+    def scale_sel(self, evt):
+        milliseconds = self.parent.control_bar.scale_var.get()
+        self.parent.control_bar.update_time_label(milliseconds*1000)
+        # if (math.fabs(milliseconds - self.parent.control_bar.timeslider_last_val) > (1.5/1000)):
+            # self.parent.control_bar.timeslider_last_val = milliseconds
+            # mval = "%.0f" % (cur_val * 1000)
+        if milliseconds <= self.player.get_length() and milliseconds >= 0:
+            self.player.set_time(int(milliseconds)) # expects milliseconds
 
     def on_volume_change(self, evt):
         if self.player == None:
