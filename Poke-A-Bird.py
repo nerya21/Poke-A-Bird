@@ -1503,14 +1503,17 @@ class MenuBar(Frame):
         self.menu.add_cascade(label="File", menu=file_menu)
 
         session_menu = Menu(self.menu, tearoff=0)
-        session_menu.add_command(label="Set grid", command=self.parent.playback_panel.on_set_grid)
-        session_menu.add_command(label="Set clock", command=self.parent.side_bar.on_set_clock_click)
-        session_menu.add_command(label="Set export location", command=self.parent.side_bar.on_set_location)
-        session_menu.add_command(label="Reset session settings", command=self.parent.on_reset)
+        session_menu.add_command(label="Reset grid")
+        session_menu.add_command(label="Reset clock")
+        session_menu.add_command(label="Reset CSV")
+        session_menu.insert_separator(3)
+        session_menu.add_command(label="Reset session settings", accelerator='Ctrl+R', command=self.parent.on_reset)
         self.menu.add_cascade(label="Session", menu=session_menu)
 
         events_menu = Menu(self.menu, tearoff=0)
-        events_menu.add_command(label="Open event manager", command=parent.on_open_event_manager_menu_click)
+        events_menu.add_command(label="Open event manager", accelerator='Ctrl+M',command=parent.on_open_event_manager_menu_click)
+        events_menu.add_command(label="Add general event", accelerator='Ctrl+E')
+        events_menu.add_command(label="Undo last event", accelerator='Ctrl+Z')
         self.menu.add_cascade(label="Events", menu=events_menu)
 
         help_menu = Menu(self.menu, tearoff=0)
@@ -1673,7 +1676,7 @@ class MainApplication(Frame):
     def on_reset(self):
         if not self.playback_panel.is_media_loaded:
             return
-        if messagebox.askokcancel("Reset Session", 'Are you sure you wish to continue?'):
+        if messagebox.askokcancel("Reset Session", 'Are you sure you wish to reset\nall session settings?'):
             self.dump_events_to_file()
             control_block.cached['total_number_of_events'] = 0
             if self.event_manager:
