@@ -439,6 +439,7 @@ class ListBox(Frame):
     def ok_clicked(self, event=None):
         if self.entryStr.get() != '':
             self.list.listbox.insert(END, self.entryStr.get())
+            self.mark_item(END)
         self.window.destroy()
 
     def close(self, event=None):
@@ -468,12 +469,15 @@ class ListBox(Frame):
     def clear_all(self):
         self.list.listbox.selection_clear(0, END)
 
-    def mark_unmark_item(self, event):
+    def mark_item(self, index):
+        self.clear_all()
+        self.list.listbox.select_set(index)
+
+    def on_mark_event(self, event):
         if event.keycode in range(ord('1'), ord('9') + 1):
             index = event.keycode - ord('1')
             if index >= 0 and index < self.list.listbox.size():
-                self.clear_all()
-                self.list.listbox.select_set(index)
+                self.mark_item(index)
 
     def __init__(self, parent, attribute, title, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
@@ -1671,8 +1675,8 @@ class MainApplication(Frame):
 
     def register_hotkeys(self):
         self.bind_all("<Control-Key-z>", self.on_delete_last_event)
-        self.bind_all("<Control-Key>", self.side_bar.events.mark_unmark_item)
-        self.bind_all("<Shift-Key>", self.side_bar.identity.mark_unmark_item)
+        self.bind_all("<Control-Key>", self.side_bar.events.on_mark_event)
+        self.bind_all("<Shift-Key>", self.side_bar.identity.on_mark_event)
         self.playback_panel.bind("<MouseWheel>", self.playback_panel.on_speed_change)
         self.control_bar.timeslider.bind("<MouseWheel>", self.control_bar.on_mouse_wheel)
         self.bind_all("<space>", self.playback_panel.on_play_pause)
