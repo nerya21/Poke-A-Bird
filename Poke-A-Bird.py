@@ -40,6 +40,7 @@ import time
 import PIL
 from PIL import Image
 from pandas import to_datetime
+from Pmw import Balloon
 
 __version__ = '0.3'
 
@@ -201,7 +202,8 @@ class ControlBlock:
     default_cache = {'total_number_of_events': 0,
                      'session_timestamp': {'is_set': 0, 'value': 0},
                      'export_location': {'is_set': 0, 'value': ''},
-                     'media_name': ''}
+                     'media_name': '',
+                     'timestamp_type': 'global'}
 
     def dump_cache(self):
         if control_block.current_media_hash != '':
@@ -548,10 +550,13 @@ class ControlBar(Frame):
         self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.timeScaleFrame = Frame(self)
+        self.time_label_balloon = Balloon(self)
         self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel_without_media_update,
                                    from_=0,orient=HORIZONTAL, resolution=-1, showvalue=0)
         self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00.000", width=9)
         self.currentTimeLabel.pack(side=RIGHT)
+        self.currentTimeLabel.bind('<Button-1>', self.on_time_label_click)
+        self.time_label_balloon.bind(self.currentTimeLabel, '{} timestamp'.format(control_block.cached['timestamp_type']))
         self.timeslider.pack(side=RIGHT, fill=X, expand=1)
 
         self.timeScaleFrame.pack(side=TOP, fill=X, expand=1)
@@ -575,6 +580,19 @@ class ControlBar(Frame):
         self.timer.start()
         self.parent.parent.update()
 
+    def on_time_label_click(self, event=None):
+        if not self.parent.playback_panel.is_media_loaded():
+            return
+        if control_block.cached['timestamp_type'] == 'global':
+            control_block.cached['timestamp_type'] = 'session'
+        elif control_block.cached['timestamp_type'] == 'session':
+            control_block.cached['timestamp_type'] = 'total'
+        elif control_block.cached['timestamp_type'] == 'total':
+            control_block.cached['timestamp_type'] = 'global'
+
+        self.update_time_label(self.parent.playback_panel.get_current_timestamp()/1000)
+        self.time_label_balloon.bind(self.currentTimeLabel, '{} timestamp'.format(control_block.cached['timestamp_type']))
+
     def on_play(self):
         self.play.configure(image=self.pause_icon, command=self.parent.playback_panel.on_pause)
 
@@ -591,7 +609,13 @@ class ControlBar(Frame):
         self.on_pause()
 
     def update_time_label(self, seconds):
-        self.currentTimeLabel.config(text=self.parent.translate_timestamp_to_clock(seconds))
+        if control_block.cached['timestamp_type'] == 'global':
+            time_label_text = self.parent.translate_timestamp_to_clock(seconds)
+        elif control_block.cached['timestamp_type'] == 'session':
+            time_label_text = self.parent.translate_timestamp_to_clock(seconds - control_block.cached['session_timestamp']['value']/1000)
+        elif control_block.cached['timestamp_type'] == 'total':
+            time_label_text = self.parent.translate_timestamp_to_clock(self.parent.playback_panel.get_media_length()/1000)
+        self.currentTimeLabel.config(text=time_label_text)
 
 class Description(Frame):
 
@@ -875,6 +899,9 @@ class PlaybackPanel(Frame):
 
     def is_media_loaded(self):
         return self.player.get_media()
+
+    def get_media_length(self):
+        return self.player.get_length()
 
     def get_current_timestamp(self):
         return self.player.get_time()
@@ -1642,7 +1669,7 @@ class MainApplication(Frame):
     def register_hotkeys(self):
         self.bind_all("<Control-Key>", self.side_bar.events.mark_unmark_item)
         self.bind_all("<Shift-Key>", self.side_bar.identity.mark_unmark_item)
-        self.bind_all("<MouseWheel>", self.playback_panel.on_speed_change)
+        self.playback_panel.bind("<MouseWheel>", self.playback_panel.on_speed_change)
         self.bind_all("<space>", self.playback_panel.on_play_pause)
         self.bind_all("<Control-Key-e>", self.on_open_event_manager_menu_click)
         self.bind_all("<Right>", self.playback_panel.on_next_frame)
