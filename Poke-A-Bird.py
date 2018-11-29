@@ -253,24 +253,6 @@ def md5(fname):
     return hash_md5.hexdigest()
 
 class EventManager(Toplevel):
-    class Control(Frame):
-        def __init__(self, parent, *args, **kwargs):
-            Frame.__init__(self, parent, *args, **kwargs)
-            self.parent = parent
-
-            self.export_icon = PhotoImage(file='./media/save_20.png')
-            self.export_button = Button(self, image=self.export_icon, command=self.parent.parent.on_export_events)
-            self.remove_icon = PhotoImage(file='./media/remove_record_20.png')
-            self.remove_button = Button(self, image=self.remove_icon, command=self.parent.delete_item)
-            self.goto_icon = PhotoImage(file='./media/goto_20.png')
-            self.goto_button = Button(self, image=self.goto_icon, command=self.parent.on_click)
-
-            self.export_button.pack(side=LEFT,padx=1)
-            Frame(self).pack(side=LEFT, fill=Y, padx=5)
-            self.goto_button.pack(side=LEFT,padx=1)
-            self.remove_button.pack(side=LEFT,padx=1)
-
-
 
     class List(Frame):
         def __init__(self, parent, *args, **kwargs):
@@ -281,6 +263,7 @@ class EventManager(Toplevel):
             self.y_scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.listbox.yview)
             # self.x_scrollbar = ttk.Scrollbar(self, orient="horizontal", command=self.listbox.xview)
             self.listbox.bind('<Double-1>', self.parent.on_click)
+            self.listbox.bind('<Delete>', self.parent.delete_selected_item)
 
             self.listbox["columns"]=('video_timestamp', 'session_timestamp', 'identities','events','description' , 'pos_x', 'pos_y', 'attribute')
             self.listbox['show'] = 'headings'
@@ -324,14 +307,7 @@ class EventManager(Toplevel):
             self.status_label.pack(side=BOTTOM, fill=X)
 
         def display(self, event):
-            if event.widget == self.parent.control_bar.export_button:
-                self.status_label.config(text="Export events list")
-            elif event.widget == self.parent.control_bar.goto_button:
-                self.status_label.config(text="Go to selected event")
-            elif event.widget == self.parent.control_bar.remove_button:
-                self.status_label.config(text="Remove selected event")
-            else:
-                self.status_label.config(text='Total number of events: ' + str(control_block.cached['total_number_of_events']))
+            self.status_label.config(text='Total number of events: ' + str(control_block.cached['total_number_of_events']))
 
         def refresh_default_status(self):
             self.status_label.config(
@@ -347,13 +323,8 @@ class EventManager(Toplevel):
         self.geometry("%dx%d%+d%+d" % (event_manager_config['size_x'], event_manager_config['size_y'],
                                        event_manager_config['pos_x'], event_manager_config['pos_y']))
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
-        # self.parent.side_bar.upper_bar.eventManagerButton.config(relief=SUNKEN)
-
-        self.control_bar = self.Control(self, borderwidth=2)
         self.list = self.List(self, borderwidth=2)
         self.status_bar = self.StatusBar(self)
-
-        self.control_bar.pack(fill=BOTH)
         self.list.pack(fill=BOTH, expand=TRUE)
         self.status_bar.pack(fill=BOTH)
 
@@ -366,17 +337,22 @@ class EventManager(Toplevel):
         else:
             return self.list.listbox.index(iid) 
 
-    def delete_item(self):
+    def delete_item(self,item):
+        control_block.events.pop(item)
+        control_block.cached['total_number_of_events'] -= 1
+        self.list.refresh_events()
+
+    def delete_selected_item(self,event=None):
         current_selection = self.get_selected_event_index()
-        if current_selection != -1:
-            control_block.events.pop(current_selection)
-            control_block.cached['total_number_of_events'] -= 1
-            self.list.refresh_events()
+        if current_selection == -1:
+            return
+        self.delete_item(current_selection)
 
     def on_click(self,event=None):
         current_selection = self.get_selected_event_index()
-        if current_selection != -1:
-            self.parent.playback_panel.goto_timestamp(int(control_block.events[current_selection][0]))
+        if current_selection == -1:
+            return
+        self.parent.playback_panel.goto_timestamp(int(control_block.events[current_selection][0]))
 
     def on_closing(self):
         configuration.config['event_manager']['size_x'] = self.winfo_width()
@@ -556,7 +532,7 @@ class ControlBar(Frame):
         self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00.000", width=9)
         self.currentTimeLabel.pack(side=RIGHT)
         self.currentTimeLabel.bind('<Button-1>', self.on_time_label_click)
-        self.time_label_balloon.bind(self.currentTimeLabel, '{} timestamp'.format(control_block.cached['timestamp_type']))
+        self.time_label_balloon.bind(self.currentTimeLabel, '{}'.format(control_block.cached['timestamp_type']))
         self.timeslider.pack(side=RIGHT, fill=X, expand=1)
 
         self.timeScaleFrame.pack(side=TOP, fill=X, expand=1)
@@ -750,7 +726,6 @@ class PlaybackPanel(Frame):
 
         relative_click = self.get_relative_location(event.x, event.y, self.winfo_width(), self.winfo_height(),
                                                     self.winfo_screenwidth(), self.winfo_screenheight())
-        #relative_click = self.get_relative_location(event.x, event.y, self.winfo_width(), self.winfo_height(), self.player.video_get_width(), self.player.video_get_height())
         if relative_click[0] == -1 or relative_click[1] == -1:
             return
             
@@ -764,8 +739,6 @@ class PlaybackPanel(Frame):
         #print("(%d, %d)" % (cell[0], cell[1])) #put it to the event manager
         attribute_on_cell = "None" if (len(self.grid_attributes) == 0 or self.grid_attributes[cell[0]] == None or self.grid_attributes[cell[0]][cell[1]] == None) else self.grid_attributes[cell[0]][cell[1]]
         session_timestamp = self.player.get_time()-control_block.cached['session_timestamp']['value']
-        if session_timestamp < 0:
-            return
         self.parent.add_item(self.player.get_time(),session_timestamp,identities,events,self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
 
     def on_media_reached_end(self):
@@ -887,20 +860,14 @@ class PlaybackPanel(Frame):
 
     def scale_sel_without_media_update(self, evt):
         milliseconds = self.parent.control_bar.scale_var.get()
+        if not (milliseconds <= self.player.get_length() and milliseconds >= 0):
+            return
         self.parent.control_bar.update_time_label(milliseconds/1000)
-        # if (math.fabs(milliseconds - self.parent.control_bar.timeslider_last_val) > (1.5/1000)):
-            # self.parent.control_bar.timeslider_last_val = milliseconds
-            # mval = "%.0f" % (cur_val * 1000)
+        return milliseconds
 
-
-    def scale_sel(self, evt):
-        milliseconds = self.parent.control_bar.scale_var.get()
-        self.parent.control_bar.update_time_label(milliseconds*1000)
-        # if (math.fabs(milliseconds - self.parent.control_bar.timeslider_last_val) > (1.5/1000)):
-            # self.parent.control_bar.timeslider_last_val = milliseconds
-            # mval = "%.0f" % (cur_val * 1000)
-        if milliseconds <= self.player.get_length() and milliseconds >= 0:
-            self.player.set_time(int(milliseconds)) # expects milliseconds
+    def scale_sel(self, event):
+        milliseconds = self.scale_sel_without_media_update(event)
+        self.player.set_time(int(milliseconds))
 
     def on_volume_change(self, evt):
         if self.player == None:
@@ -1513,7 +1480,7 @@ class MenuBar(Frame):
         events_menu = Menu(self.menu, tearoff=0)
         events_menu.add_command(label="Open event manager", accelerator='Ctrl+M',command=parent.on_open_event_manager_menu_click)
         events_menu.add_command(label="Add general event", accelerator='Ctrl+E')
-        events_menu.add_command(label="Undo last event", accelerator='Ctrl+Z')
+        events_menu.add_command(label="Undo last event", accelerator='Ctrl+Z',command=self.parent.on_delete_last_event)
         self.menu.add_cascade(label="Events", menu=events_menu)
 
         help_menu = Menu(self.menu, tearoff=0)
@@ -1658,7 +1625,15 @@ class MainApplication(Frame):
         if not self.event_manager:
             self.event_manager = EventManager(self, takefocus=True)
 
+    def on_delete_last_event(self,event=None):
+        if not control_block.events:
+            return
 
+        control_block.events.pop(-1)
+        control_block.cached['total_number_of_events'] -= 1
+        self.playback_panel.set_text_on_screen('Undo last event')
+        if self.event_manager:
+            self.event_manager.refresh_events()
 
     def on_export_events(self):
         raise Exception()
@@ -1695,12 +1670,13 @@ class MainApplication(Frame):
         control_block.events.clear()
 
     def register_hotkeys(self):
+        self.bind_all("<Control-Key-z>", self.on_delete_last_event)
         self.bind_all("<Control-Key>", self.side_bar.events.mark_unmark_item)
         self.bind_all("<Shift-Key>", self.side_bar.identity.mark_unmark_item)
         self.playback_panel.bind("<MouseWheel>", self.playback_panel.on_speed_change)
         self.control_bar.timeslider.bind("<MouseWheel>", self.control_bar.on_mouse_wheel)
         self.bind_all("<space>", self.playback_panel.on_play_pause)
-        self.bind_all("<Control-Key-e>", self.on_open_event_manager_menu_click)
+        self.bind_all("<Control-Key-m>", self.on_open_event_manager_menu_click)
         self.bind_all("<Right>", self.playback_panel.on_next_frame)
 
 def callback(event):
