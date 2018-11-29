@@ -580,6 +580,31 @@ class ControlBar(Frame):
         self.timer.start()
         self.parent.parent.update()
 
+    def on_mouse_wheel(self, event):
+        if not self.parent.playback_panel.is_media_loaded():
+            return
+
+        if self.parent.playback_panel.player.get_state == 'Playing':
+            was_playing = True
+            self.parent.playback_panel.player.pause()
+        else:
+            was_playing = False
+        
+        if event.delta > 0:
+            new_timestamp = self.parent.playback_panel.player.get_time() - 400
+        else:
+            new_timestamp = self.parent.playback_panel.player.get_time() + 400
+        
+        if new_timestamp < 0:
+            new_timestamp = 0
+        elif new_timestamp > self.parent.playback_panel.get_media_length():
+            new_timestamp = self.parent.playback_panel.get_media_length()
+        
+        self.parent.playback_panel.player.set_time(new_timestamp)
+        if was_playing:
+            self.parent.playback_panel.player.play()
+
+        
     def on_time_label_click(self, event=None):
         if not self.parent.playback_panel.is_media_loaded():
             return
@@ -1670,6 +1695,7 @@ class MainApplication(Frame):
         self.bind_all("<Control-Key>", self.side_bar.events.mark_unmark_item)
         self.bind_all("<Shift-Key>", self.side_bar.identity.mark_unmark_item)
         self.playback_panel.bind("<MouseWheel>", self.playback_panel.on_speed_change)
+        self.control_bar.timeslider.bind("<MouseWheel>", self.control_bar.on_mouse_wheel)
         self.bind_all("<space>", self.playback_panel.on_play_pause)
         self.bind_all("<Control-Key-e>", self.on_open_event_manager_menu_click)
         self.bind_all("<Right>", self.playback_panel.on_next_frame)
