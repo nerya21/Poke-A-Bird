@@ -693,6 +693,7 @@ class PlaybackPanel(Frame):
         self.player.video_set_mouse_input(False)
         self.player.video_set_key_input(False)
         self.bind('<Button-1>', self.on_click)
+        self.bind('<ButtonRelease-1>', self.on_click_released)
         self.parent.side_bar.upper_bar.calibrate_button.config(command=self.on_set_grid)
         self.events = self.player.event_manager()
         self.events.event_attach(vlc.EventType.MediaPlayerEndReached, self.EventManager)
@@ -719,6 +720,9 @@ class PlaybackPanel(Frame):
 
         return rel_click_x, rel_click_y
 
+    def on_click_released(self, event):
+        self.config(cursor='')
+        
     def on_click(self, event):
         if not self.parent.side_bar.is_clock_set():
             return
@@ -745,7 +749,7 @@ class PlaybackPanel(Frame):
         attribute_on_cell = "None" if (len(self.grid_attributes) == 0 or self.grid_attributes[cell[0]] == None or self.grid_attributes[cell[0]][cell[1]] == None) else self.grid_attributes[cell[0]][cell[1]]
         session_timestamp = self.player.get_time()-control_block.cached['session_timestamp']['value']
         self.parent.add_item(self.player.get_time(),session_timestamp,identities,events,self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
-
+        self.config(cursor='gobbler')
     def on_media_reached_end(self):
         self.player.set_time(0)
 
@@ -866,7 +870,7 @@ class PlaybackPanel(Frame):
     def scale_sel_without_media_update(self, evt):
         milliseconds = self.parent.control_bar.scale_var.get()
         if not (milliseconds <= self.player.get_length() and milliseconds >= 0):
-            return
+            return 0
         self.parent.control_bar.update_time_label(milliseconds/1000)
         return milliseconds
 
@@ -890,7 +894,7 @@ class PlaybackPanel(Frame):
     def set_text_on_screen(self, text):
         self.player.video_set_marquee_int(0, 1)
         self.player.video_set_marquee_int(6, 48)
-        self.player.video_set_marquee_int(7, 2000)
+        self.player.video_set_marquee_int(7, 200)
         self.player.video_set_marquee_string(1, text)
         self.player.video_get_marquee_string(1)
 
@@ -1484,6 +1488,7 @@ class MenuBar(Frame):
 
         events_menu = Menu(self.menu, tearoff=0)
         events_menu.add_command(label="Open event manager", accelerator='Ctrl+M',command=parent.on_open_event_manager_menu_click)
+        events_menu.insert_separator(1)
         events_menu.add_command(label="Add general event", accelerator='Ctrl+E')
         events_menu.add_command(label="Undo last event", accelerator='Ctrl+Z',command=self.parent.on_delete_last_event)
         self.menu.add_cascade(label="Events", menu=events_menu)
@@ -1584,10 +1589,15 @@ class MainApplication(Frame):
         self.control_bar.timeslider.set(d_time)
 
     def translate_timestamp_to_clock(self, seconds):
+        if seconds < 0:
+            sign = '-'
+            seconds *= -1
+        else:
+            sign = ' '
         HH = seconds // 3600
         MM = seconds // 60
         SS = seconds % 60
-        return "{:02.0f}:{:02.0f}:{:06.3f}".format(HH,MM,SS)
+        return "{}{:02.0f}:{:02.0f}:{:06.3f}".format(sign,HH,MM,SS)
 
     def translate_to_friendly_record(self, record):
         friendly_record = list.copy(record)
