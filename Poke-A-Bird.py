@@ -44,17 +44,11 @@ from Pmw import Balloon
 
 __version__ = '0.3'
 
-#genImageProjective class is used for getting the right prespective of the grid
-
-
-
-
-
 class ControlBlock:
     def __init__(self):
         self.cache_file = pathlib.Path('cache.json')
         self.events = []
-        self.current_media_hash= ''
+        self.current_media_hash = ''
         self.cached = {}
         self.cached = self.default_cache = {'total_number_of_events': 0,
                                             'session_timestamp': {'is_set': 0, 'value': 0},
@@ -86,6 +80,7 @@ class ControlBlock:
                 if self.current_media_hash in cached_json:
                     self.cached = cached_json[self.current_media_hash]
 
+
 class Configuration:
 
     def __init__(self):
@@ -94,16 +89,16 @@ class Configuration:
         if self.config_file.is_file():
             with open(self.config_file, 'r') as fp:
                 self.config = json.load(fp)
-        else:    
-            self.config = {'last_export_path':'%USERPROFILE%',
-                            'last_path':'%USERPROFILE%',
-                            'identity_list': [],
-                            'event_list': [],
-                            'speed': 1,
-                            'grid_point_size': 10,
-                            'grid_line_size': 5,
-                            'event_manager': {'size_x': 300, 'size_y': 300, 'pos_x': 300, 'pos_y': 300, 'number_of_events': 10},
-                            'main_application': {'size_x': 300, 'size_y': 300, 'pos_x': 300, 'pos_y': 300}}
+        else:
+            self.config = {'last_export_path': '%USERPROFILE%',
+                           'last_path': '%USERPROFILE%',
+                           'identity_list': [],
+                           'event_list': [],
+                           'speed': 1,
+                           'grid_point_size': 10,
+                           'grid_line_size': 5,
+                           'event_manager': {'size_x': 300, 'size_y': 300, 'pos_x': 300, 'pos_y': 300, 'number_of_events': 10},
+                           'main_application': {'size_x': 300, 'size_y': 300, 'pos_x': 300, 'pos_y': 300}}
 
 
 def md5(fname):
@@ -112,6 +107,7 @@ def md5(fname):
         buffer = f.read(65536)
         hash_md5.update(buffer)
     return hash_md5.hexdigest()
+
 
 class EventManager(Toplevel):
 
@@ -123,7 +119,7 @@ class EventManager(Toplevel):
             self.y_scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.listbox.yview)
             self.listbox.bind('<Double-1>', self.parent.on_click)
             self.listbox.bind('<Delete>', self.parent.delete_selected_item)
-            self.listbox["columns"]=('video_timestamp', 'session_timestamp', 'identities','events','description' , 'pos_x', 'pos_y', 'attribute')
+            self.listbox["columns"] = ('video_timestamp', 'session_timestamp', 'identities', 'events', 'description', 'pos_x', 'pos_y', 'attribute')
             self.listbox['show'] = 'headings'
             self.listbox.column("video_timestamp", minwidth=110, width=110, anchor='w')
             self.listbox.column("session_timestamp", minwidth=110, width=110, anchor='w')
@@ -142,13 +138,13 @@ class EventManager(Toplevel):
             self.listbox.heading("pos_y", text='Row', anchor='w')
             self.listbox.heading("attribute", text='Attribute', anchor='w')
             self.y_scrollbar.pack(side=RIGHT, fill=Y)
-            self.listbox.pack(side=LEFT, fill = BOTH, expand=TRUE)
+            self.listbox.pack(side=LEFT, fill=BOTH, expand=TRUE)
             self.refresh_events()
 
         def refresh_events(self):
             self.clear_events()
             for event in control_block.events:
-                self.listbox.insert('',END, values=self.parent.parent.translate_to_friendly_record(event))
+                self.listbox.insert('', END, values=self.parent.parent.translate_to_friendly_record(event))
 
         def clear_events(self):
             self.listbox.delete(*self.listbox.get_children())
@@ -172,7 +168,7 @@ class EventManager(Toplevel):
         Toplevel.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         self.title('Event Manager')
-        self.minsize(790,250)
+        self.minsize(790, 250)
 
         event_manager_config = configuration.config['event_manager']
         self.geometry("%dx%d%+d%+d" % (event_manager_config['size_x'], event_manager_config['size_y'],
@@ -190,20 +186,20 @@ class EventManager(Toplevel):
         if iid == '':
             return -1
         else:
-            return self.list.listbox.index(iid) 
+            return self.list.listbox.index(iid)
 
-    def delete_item(self,item):
+    def delete_item(self, item):
         control_block.events.pop(item)
         control_block.cached['total_number_of_events'] -= 1
         self.list.refresh_events()
 
-    def delete_selected_item(self,event=None):
+    def delete_selected_item(self, event=None):
         current_selection = self.get_selected_event_index()
         if current_selection == -1:
             return
         self.delete_item(current_selection)
 
-    def on_click(self,event=None):
+    def on_click(self, event=None):
         current_selection = self.get_selected_event_index()
         if current_selection == -1:
             return
@@ -231,7 +227,6 @@ class EventManager(Toplevel):
         self.status_bar.refresh_default_status()
 
 
-
 class ttkTimer(Thread):
     def __init__(self, callback, tick):
         Thread.__init__(self)
@@ -250,6 +245,7 @@ class ttkTimer(Thread):
 
     def get(self):
         return self.iters
+
 
 class ListBox(Frame):
     class Title(Frame):
@@ -276,7 +272,7 @@ class ListBox(Frame):
 
             self.scrollbar = Scrollbar(self)
             self.listbox = Listbox(self, height=5, yscrollcommand=self.scrollbar.set, borderwidth=0,
-                                   highlightthickness=0, exportselection=False, activestyle=NONE, selectmode = EXTENDED)
+                                   highlightthickness=0, exportselection=False, activestyle=NONE, selectmode=EXTENDED)
             self.scrollbar.config(command=self.listbox.yview)
 
             self.scrollbar.pack(side=RIGHT, fill=Y)
@@ -303,7 +299,7 @@ class ListBox(Frame):
     def add_item(self):
         self.window = window = Toplevel(self.parent.parent.parent, borderwidth=5)
         window.grab_set()
-        window.title('Add '+ self.title)
+        window.title('Add ' + self.title)
         window.resizable(0, 0)
         self.entryStr = entryStr = StringVar()
         Label(window, text='Name: ').grid(row=0, column=0)
@@ -379,7 +375,7 @@ class ControlBar(Frame):
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.time_frame = Frame(self)
         self.time_label_balloon = Balloon(self)
-        self.time_slider = Scale(self.time_frame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel_without_media_update, from_=0,orient=HORIZONTAL, resolution=-1, showvalue=0)
+        self.time_slider = Scale(self.time_frame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel_without_media_update, from_=0, orient=HORIZONTAL, resolution=-1, showvalue=0)
         self.time_label = Label(self.time_frame, text="00:00:00.000", width=9)
         self.time_label.pack(side=RIGHT)
         self.time_label.bind('<Button-1>', self.on_time_label_click)
@@ -407,21 +403,21 @@ class ControlBar(Frame):
     def on_jump_backward(self, event=None):
         if not self.parent.playback_panel.is_media_loaded():
             return
-            
+
         new_timestamp = self.parent.playback_panel.player.get_time() + 400
         if new_timestamp > self.parent.playback_panel.get_media_length():
             new_timestamp = self.parent.playback_panel.get_media_length()
-        
+
         self.parent.playback_panel.player.set_time(new_timestamp)
 
     def on_jump_forward(self, event=None):
         if not self.parent.playback_panel.is_media_loaded():
             return
-            
+
         new_timestamp = self.parent.playback_panel.player.get_time() - 400
         if new_timestamp < 0:
             new_timestamp = 0
-        
+
         self.parent.playback_panel.player.set_time(new_timestamp)
 
     def on_mouse_wheel(self, event):
@@ -433,7 +429,7 @@ class ControlBar(Frame):
             self.parent.playback_panel.player.pause()
         else:
             was_playing = False
-        
+
         if event.delta > 0:
             self.on_jump_forward()
         else:
@@ -442,7 +438,6 @@ class ControlBar(Frame):
         if was_playing:
             self.parent.playback_panel.player.play()
 
-        
     def on_time_label_click(self, event=None):
         if not self.parent.playback_panel.is_media_loaded():
             return
@@ -477,6 +472,7 @@ class ControlBar(Frame):
             time_label_text = self.parent.translate_timestamp_to_clock(self.parent.playback_panel.get_media_length()/1000)
         self.time_label.config(text=time_label_text)
 
+
 class Description(Frame):
 
     class Title(Frame):
@@ -491,7 +487,6 @@ class Description(Frame):
 
             self.title.pack(fill=BOTH, side=LEFT, expand=TRUE)
             self.remove_button.pack(side=LEFT, padx=1, pady=1)
-
 
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
@@ -512,6 +507,7 @@ class Description(Frame):
         self.clear()
         return description
 
+
 class Grid(Toplevel):
 
     class GenImageProjective:
@@ -527,11 +523,11 @@ class Grid(Toplevel):
 
         def computeCoeefficients(self):
             retValue = 0
-            a = [[0 for x in range(8)] for y in range(8)] #8x8 matrix A
-            b = self.vc #rhs vector of primed coords X'; coeffs returned in vc[]
+            a = [[0 for x in range(8)] for y in range(8)]  # 8x8 matrix A
+            b = self.vc  # rhs vector of primed coords X'; coeffs returned in vc[]
 
-            b[0] = self.destArea[0][0] #take the x value
-            b[1] = self.destArea[0][1] #take the y value
+            b[0] = self.destArea[0][0]  # take the x value
+            b[1] = self.destArea[0][1]  # take the y value
             b[2] = self.destArea[1][0]
             b[3] = self.destArea[1][1]
             b[4] = self.destArea[2][0]
@@ -583,7 +579,7 @@ class Grid(Toplevel):
             retValue = self.gaussjordan(a, b, 8)
             return self.Terminate(retValue)
 
-        def mapSourceToDestPoint(self, sourcePoint): #return dest point
+        def mapSourceToDestPoint(self, sourcePoint):  # return dest point
             if self.coefficientsComputed:
                 factor = (1.0 / (self.vc[6] * sourcePoint[0] + self.vc[7] * sourcePoint[1] + 1.0))
                 destPoint_x = (factor * (self.vc[0] * sourcePoint[0] + self.vc[1] * sourcePoint[1] + self.vc[2]))
@@ -595,7 +591,7 @@ class Grid(Toplevel):
         def gaussjordan(self, a, b, n):
             retValue = 0
             icol, irow = 0, 0
-            indexc, indexr , ipiv = [0]*n, [0]*n, [0]*n
+            indexc, indexr, ipiv = [0]*n, [0]*n, [0]*n
             big, dum, pivinv, temp = 0.0, 0.0, 0.0, 0.0
 
             if (a == None):
@@ -661,9 +657,9 @@ class Grid(Toplevel):
         self.parent = parent
         self.grid_window = None
         self.canvas_grid = None
-        self.grid_borders = list() 
-        self.grid_points = [None, None, None, None] 
-        self.grid_lines = [None, None, None, None] 
+        self.grid_borders = list()
+        self.grid_points = [None, None, None, None]
+        self.grid_lines = [None, None, None, None]
         self.grid_inner_lines = list()
         self.grid_inner_points = list()
         self.grabbed_obj = None
@@ -693,8 +689,8 @@ class Grid(Toplevel):
         self.canvas_grid = Canvas(self.grid_window, height=snapshot.height(), width=snapshot.width())
         self.canvas_grid.grid(row=0, column=0, rowspan=12, columnspan=4)
         self.canvas_grid.create_image(0, 0, anchor=NW, image=snapshot)
-        entryInt1 = IntVar() #cols
-        entryInt2 = IntVar() #rows
+        entryInt1 = IntVar()  # cols
+        entryInt2 = IntVar()  # rows
         Label(self.grid_window, text="Rows").grid(row=0, column=5)
         Label(self.grid_window, text="Cols").grid(row=1, column=5)
         Entry(self.grid_window, textvariable=entryInt2, width=20).grid(row=0, column=6)
@@ -704,18 +700,18 @@ class Grid(Toplevel):
             self.grid_load_from_cache()
         self.grid_window.wait_window()
 
-    def grid_get_cols_rows(self, cols, rows): #1st phase of grid calibration - rows & cols
+    def grid_get_cols_rows(self, cols, rows):  # 1st phase of grid calibration - rows & cols
         self.grid_num_cols = cols
         self.grid_num_rows = rows
-        for widget in self.grid_window.grid_slaves(): #remove widgets from window (rows & cols entry boxes etc.)
+        for widget in self.grid_window.grid_slaves():  # remove widgets from window (rows & cols entry boxes etc.)
             if int(widget.grid_info()["column"]) > 4:
                 widget.grid_forget()
-        #start calibration
+        # start calibration
         self.grid_label = Label(self.grid_window, text="Top Left", height=4, width=20)
         self.grid_label.grid(row=0, column=5, columnspan=2)
         self.canvas_grid.bind('<Button-1>', self.grid_create_outer)
 
-    def grid_create_outer(self, event, eventExist=True): #2nd phase of grid calibration - outer lines and points
+    def grid_create_outer(self, event, eventExist=True):  # 2nd phase of grid calibration - outer lines and points
         if eventExist:
             self.grid_borders.append((event.x, event.y))
         if len(self.grid_borders) == 1:
@@ -726,38 +722,38 @@ class Grid(Toplevel):
             self.grid_label.config(text="Bottom Right")
         elif len(self.grid_borders) == 3:
             self.grid_window.title("Grid Calibration: Bottom Left")
-            self.grid_label.config(text="Bottom Left") 
-        elif len(self.grid_borders) == 4 or not eventExist: #if we have 4 points for the grid, or got here from cache load
+            self.grid_label.config(text="Bottom Left")
+        elif len(self.grid_borders) == 4 or not eventExist:  # if we have 4 points for the grid, or got here from cache load
             self.grid_label.config(text="Outer Borders")
             self.grid_window.title("Grid Calibration")
             Button(self.grid_window, text="OK", height=4, width=10,
                    command=lambda: self.grid_create_inner(first_use=True)).grid(row=1, column=5, columnspan=2)
-            for i in range(4): #draw lines
-                self.grid_lines[i] = self.canvas_grid.create_line(self.grid_borders[i][0], self.grid_borders[i][1], self.grid_borders[(i+1)%4][0], self.grid_borders[(i+1)%4][1], fill="blue", width=configuration.config['grid_line_size'], tags="line")
+            for i in range(4):  # draw lines
+                self.grid_lines[i] = self.canvas_grid.create_line(self.grid_borders[i][0], self.grid_borders[i][1], self.grid_borders[(i+1) % 4][0], self.grid_borders[(i+1) % 4][1], fill="blue", width=configuration.config['grid_line_size'], tags="line")
                 self.canvas_grid.tag_bind(self.grid_lines[i], "<ButtonPress-1>", self.on_start_grab)
                 self.canvas_grid.tag_bind(self.grid_lines[i], "<ButtonRelease-1>", self.on_drop_grab)
-            for i in range(4): #draw points
+            for i in range(4):  # draw points
                 self.grid_points[i] = self.canvas_grid.create_oval(self.grid_borders[i][0], self.grid_borders[i][1], self.grid_borders[i][0], self.grid_borders[i][1], width=configuration.config['grid_point_size'], fill='white', outline='white', tags="point")
                 self.canvas_grid.tag_bind(self.grid_points[i], "<ButtonPress-1>", self.on_start_grab)
                 self.canvas_grid.tag_bind(self.grid_points[i], "<ButtonRelease-1>", self.on_drop_grab)
-        else: #canvas clicks after this calibration
+        else:  # canvas clicks after this calibration
             return
 
     def load_attributes_from_clipboard(self):
         clipboard = self.parent.parent.clipboard_get()
         self.grid_attributes = [line.split('\t') for line in clipboard.split('\n')][:-1]
 
-    def grid_create_inner(self, modify=False, first_use=False, from_cache=False, json_lines=None, json_points=None): #3rd phase of calibration - create the inner lines and points
-        if modify: #remove current inner grid (and later create one from scratch)
+    def grid_create_inner(self, modify=False, first_use=False, from_cache=False, json_lines=None, json_points=None):  # 3rd phase of calibration - create the inner lines and points
+        if modify:  # remove current inner grid (and later create one from scratch)
             for line in self.grid_inner_lines:
                 self.canvas_grid.delete(line)
             self.grid_inner_lines = list()
             for point in self.grid_inner_points:
                 self.canvas_grid.delete(point)
             self.grid_inner_points = list()
-        if first_use: #if its the first time creating the inner grid, create the other buttons on the windows
+        if first_use:  # if its the first time creating the inner grid, create the other buttons on the windows
             for widget in self.grid_window.grid_slaves():  # remove widgets from window (rows & cols entry boxes etc.)
-                if int(widget.grid_info()["column"]) == 5 and int(widget.grid_info()["row"]) == 1: #catch the OK button
+                if int(widget.grid_info()["column"]) == 5 and int(widget.grid_info()["row"]) == 1:  # catch the OK button
                     widget.grid_forget()
                     break
             self.grid_label.config(text="Inner Borders")
@@ -781,9 +777,9 @@ class Grid(Toplevel):
                 self.grid_inner_points.append(
                     self.canvas_grid.create_oval(json_point[0], json_point[1], json_point[0], json_point[1],
                                                  width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
-        else: #not from cache - calculate prespective using genImageProjective class
-            #first create a rectangle as it was straight
-            top_left = (0,0)
+        else:  # not from cache - calculate prespective using genImageProjective class
+            # first create a rectangle as it was straight
+            top_left = (0, 0)
             top_right = (self.grid_num_cols, 0)
             buttom_right = (self.grid_num_cols, self.grid_num_rows)
             buttom_left = (0, self.grid_num_rows)
@@ -793,10 +789,10 @@ class Grid(Toplevel):
             dest_area = self.grid_borders
             imageProjective = Grid.GenImageProjective(source_area, dest_area)
 
-            #now calculate coeefficients for the right prespective
-            if imageProjective.computeCoeefficients() != 0: #3 points on the same line, can't calculate
+            # now calculate coeefficients for the right prespective
+            if imageProjective.computeCoeefficients() != 0:  # 3 points on the same line, can't calculate
                 return
-            #vertical lines
+            # vertical lines
             for i in range(1, self.grid_num_cols):
                 pos = i * (1 / self.grid_num_rows)
                 tempPnt = (top_left[0] + pos * height, top_left[1])
@@ -812,7 +808,7 @@ class Grid(Toplevel):
                 self.grid_inner_points.append(
                     self.canvas_grid.create_oval(lower_point[0], lower_point[1], lower_point[0], lower_point[1],
                                                  width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
-            #horizontal lines
+            # horizontal lines
             for i in range(1, self.grid_num_rows):
                 pos = i * (1 / self.grid_num_cols)
                 tempPnt = (top_left[0], top_left[1] + pos * width)
@@ -829,7 +825,7 @@ class Grid(Toplevel):
                     self.canvas_grid.create_oval(right_point[0], right_point[1], right_point[0], right_point[1],
                                                  width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
 
-        #bind the inner widgets to the grab function
+        # bind the inner widgets to the grab function
         for point in self.grid_inner_points:
             self.canvas_grid.tag_bind(point, "<ButtonPress-1>", self.on_start_grab)
             self.canvas_grid.tag_bind(point, "<ButtonRelease-1>", self.on_drop_grab)
@@ -837,11 +833,11 @@ class Grid(Toplevel):
             self.canvas_grid.tag_bind(line, "<ButtonPress-1>", self.on_start_grab)
             self.canvas_grid.tag_bind(line, "<ButtonRelease-1>", self.on_drop_grab)
 
-    def grid_finish(self): #4th phase of calibration - save to cache and hide the grid window
-        self.grid_window.withdraw() #hides the grid window, but we can still work on it in the background
+    def grid_finish(self):  # 4th phase of calibration - save to cache and hide the grid window
+        self.grid_window.withdraw()  # hides the grid window, but we can still work on it in the background
         control_block.cached['grid']['is_set'] = 1
         # self.is_grid_set = True
-        
+
         self.parent.side_bar.upper_bar.calibrate_button.config(relief=SUNKEN)
         self.grid_dump_to_cache()
 
@@ -851,8 +847,8 @@ class Grid(Toplevel):
         self.grid_window = None
         self.canvas_grid = None
         self.grid_borders = list()
-        self.grid_points = [None, None, None, None] #outer
-        self.grid_lines = [None, None, None, None] #outer
+        self.grid_points = [None, None, None, None]  # outer
+        self.grid_lines = [None, None, None, None]  # outer
         self.grid_inner_lines = list()
         self.grid_inner_points = list()
         self.grabbed_obj = None
@@ -869,16 +865,16 @@ class Grid(Toplevel):
         control_block.cached['grid']['is_set'] = 0
         self.grid_dump_to_cache(uncache=True)
         # if not generalReset: #generalReset = reset from outside of the grid windows, hence doesn't need to open set_grid again
-            # self.on_set_grid()
+        # self.on_set_grid()
 
     def grid_load_attributes(self, filename=None):
-        if (filename == None): #user clicks the button and select by himself
+        if (filename == None):  # user clicks the button and select by himself
             p = pathlib.Path(os.path.expanduser(configuration.config['last_path']))
-            self.attr_file_path = askopenfilename(initialdir = p, title = "choose your file",filetypes = (("all files","*.*"),("CSV file (*.csv)","*.csv")))
+            self.attr_file_path = askopenfilename(initialdir=p, title="choose your file", filetypes=(("all files", "*.*"), ("CSV file (*.csv)", "*.csv")))
             filename = self.attr_file_path
-        else: #load from cache - given filename from json
+        else:  # load from cache - given filename from json
             self.attr_file_path = filename
-        if filename == "": #no file selected
+        if filename == "":  # no file selected
             return
         with open(filename, newline='') as csvfile:
             spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
@@ -933,7 +929,7 @@ class Grid(Toplevel):
                 outerline = outer_coords
         return outerline
 
-    def find_closest_point(self, x, y, outer=False): #given (x,y) coords, get the point (a.k.a "oval" instance) it represents (inner or outer point)
+    def find_closest_point(self, x, y, outer=False):  # given (x,y) coords, get the point (a.k.a "oval" instance) it represents (inner or outer point)
         dist = 100000
         closest_point = None
         if outer:
@@ -952,22 +948,22 @@ class Grid(Toplevel):
                     closest_point = self.grid_inner_points[i]
         return closest_point
 
-    def find_closest_point_on_line(self, x, y, line): #get the point (a,b) on the line "line" which is the closest to the point (x,y)
+    def find_closest_point_on_line(self, x, y, line):  # get the point (a,b) on the line "line" which is the closest to the point (x,y)
         side_a_to_point = (x - line[0], y - line[1])
         side_b_to_side_a = (line[2] - line[0], line[3] - line[1])
         atb2 = side_b_to_side_a[0] ** 2 + side_b_to_side_a[1] ** 2
         atp_dot_atb = side_a_to_point[0] * side_b_to_side_a[0] + side_a_to_point[1] * side_b_to_side_a[1]
         t = atp_dot_atb / atb2
-        return line[0] + side_b_to_side_a[0]*t , line[1] + side_b_to_side_a[1]*t
+        return line[0] + side_b_to_side_a[0]*t, line[1] + side_b_to_side_a[1]*t
 
-    def find_dist_point_from_line(self, x, y, line): #distance between (x,y) and the line
+    def find_dist_point_from_line(self, x, y, line):  # distance between (x,y) and the line
         x_diff = line[2] - line[0]
         y_diff = line[3] - line[1]
-        num = abs(y_diff * x - x_diff* y + line[2] * line[1] - line[3] * line[0])
+        num = abs(y_diff * x - x_diff * y + line[2] * line[1] - line[3] * line[0])
         den = math.sqrt(y_diff**2 + x_diff**2)
         return num / den
 
-    def find_grid_cell(self, relative_click): #from relative click on screen, find the right (x,y) cell on grid
+    def find_grid_cell(self, relative_click):  # from relative click on screen, find the right (x,y) cell on grid
         min_dist_right = 100000
         min_dist_bottom = 100000
         right = 0
@@ -975,16 +971,16 @@ class Grid(Toplevel):
         x, y = relative_click[0] * self.canvas_grid.winfo_width(), relative_click[1] * self.canvas_grid.winfo_height()
         if not self.is_in_grid_borders(x, y):
             return -1, -1
-        #find from right - vertical lines
+        # find from right - vertical lines
         for i in range(self.grid_num_cols):
             cur_line = self.grid_inner_lines[i] if i < self.grid_num_cols - 1 else self.grid_lines[1]
             cur_dist = self.find_dist_point_from_line(x, y, self.canvas_grid.coords(cur_line))
             if cur_dist <= min_dist_right:
-                point_on_line = self.find_closest_point_on_line(x ,y, self.canvas_grid.coords(cur_line))
+                point_on_line = self.find_closest_point_on_line(x, y, self.canvas_grid.coords(cur_line))
                 if x < point_on_line[0]:
                     min_dist_right = cur_dist
                     right = i
-        #find from bottom - horizonal lines
+        # find from bottom - horizonal lines
         for i in range(self.grid_num_cols - 1, self.grid_num_cols + self.grid_num_rows - 1):
             cur_line = self.grid_inner_lines[i] if i < self.grid_num_cols + self.grid_num_rows - 2 else self.grid_lines[2]
             cur_dist = self.find_dist_point_from_line(x, y, self.canvas_grid.coords(cur_line))
@@ -995,7 +991,7 @@ class Grid(Toplevel):
                     bottom = i - self.grid_num_cols + 1
         return right, bottom
 
-    def adjust_neighbor_lines(self, p1_coords, p2_coords, new_coords): #when an outerline moved to new_coords, adjust the other outerline to their new location
+    def adjust_neighbor_lines(self, p1_coords, p2_coords, new_coords):  # when an outerline moved to new_coords, adjust the other outerline to their new location
         # new coords is the line that has moved, p1_coords and p2_coords are the line edges before it moved
         for i in range(4):
             line_old_coords = self.canvas_grid.coords(self.grid_lines[i])
@@ -1012,15 +1008,15 @@ class Grid(Toplevel):
             elif math.fabs(line_old_coords[2] - p2_coords[0]) < configuration.config['grid_point_size'] and math.fabs(line_old_coords[3] - p2_coords[1]) < configuration.config['grid_point_size']:
                 self.canvas_grid.coords(self.grid_lines[i], line_old_coords[0], line_old_coords[1], new_coords[2],
                                         new_coords[3])
-        for i in range(4): #update borders
+        for i in range(4):  # update borders
             if math.fabs(self.grid_borders[i][0] - p1_coords[0]) < configuration.config['grid_point_size'] and math.fabs(
                     self.grid_borders[i][1] - p1_coords[1]) < configuration.config['grid_point_size']:
                 self.grid_borders[i] = (new_coords[0], new_coords[1])
             elif math.fabs(self.grid_borders[i][0] - p2_coords[0]) < configuration.config['grid_point_size'] and math.fabs(
                     self.grid_borders[i][1] - p2_coords[1]) < configuration.config['grid_point_size']:
-                self.grid_borders[i] = (new_coords[2] , new_coords[3])
+                self.grid_borders[i] = (new_coords[2], new_coords[3])
 
-    def is_in_grid_borders(self, x, y): #determine whether the point (x,y) is inside grid borders
+    def is_in_grid_borders(self, x, y):  # determine whether the point (x,y) is inside grid borders
         counter = 0
         p1 = self.grid_borders[0]
         for i in range(1, 5):
@@ -1038,12 +1034,12 @@ class Grid(Toplevel):
         else:
             return True
 
-    def on_start_grab(self, event): #one can grab: line, point, innerline, innerpoint. identify the widget and location
+    def on_start_grab(self, event):  # one can grab: line, point, innerline, innerpoint. identify the widget and location
         self.grabbed_obj = event.widget.find_closest(event.x, event.y)[0]
-        self.grabbed_xy = event.x, event.y #coords of the beginning of the drag
+        self.grabbed_xy = event.x, event.y  # coords of the beginning of the drag
 
-    def on_drop_grab(self, event): #when the dragged item is released
-        if self.grabbed_obj == 1: #if accidently grabbed the canvas itself
+    def on_drop_grab(self, event):  # when the dragged item is released
+        if self.grabbed_obj == 1:  # if accidently grabbed the canvas itself
             return
         lines_moved = False
         if self.canvas_grid.gettags(self.grabbed_obj)[0] == "line":
@@ -1061,7 +1057,7 @@ class Grid(Toplevel):
                 self.grid_create_inner(modify=True)
 
         elif self.canvas_grid.gettags(self.grabbed_obj)[0] == "point":
-            line_coords = list() #old coords and new coords for 2 lines
+            line_coords = list()  # old coords and new coords for 2 lines
             for i in range(4):
                 old_coords = self.canvas_grid.coords(self.grid_lines[i])
                 if math.fabs(old_coords[0] - self.grabbed_xy[0]) < configuration.config['grid_point_size'] and math.fabs(old_coords[1] - self.grabbed_xy[1]) < configuration.config['grid_point_size']:
@@ -1074,9 +1070,9 @@ class Grid(Toplevel):
                     lines_moved = True
                     line_coords.append(old_coords)
                     line_coords.append(self.canvas_grid.coords(self.grid_lines[i]))
-            if lines_moved: #move the point
+            if lines_moved:  # move the point
                 self.canvas_grid.move(self.grabbed_obj, event.x - self.grabbed_xy[0], event.y - self.grabbed_xy[1])
-                for i in range(4): #find the points in border list
+                for i in range(4):  # find the points in border list
                     if math.fabs(self.grid_borders[i][0] - self.grabbed_xy[0]) < configuration.config['grid_point_size'] and math.fabs(self.grid_borders[i][1] - self.grabbed_xy[1]) < configuration.config['grid_point_size']:
                         self.grid_borders[i] = (event.x, event.y)
                 if self.outer_borders_has_been_set:
@@ -1094,7 +1090,7 @@ class Grid(Toplevel):
             outerline2 = self.find_closest_outerline(old_coords[2], old_coords[3])
             x1, y1 = self.find_closest_point_on_line(old_coords[0], old_coords[1], outerline1)
             x2, y2 = self.find_closest_point_on_line(old_coords[2], old_coords[3], outerline2)
-            self.canvas_grid.coords(self.grabbed_obj, x1, y1, x2, y2) #in order not to exit the borders
+            self.canvas_grid.coords(self.grabbed_obj, x1, y1, x2, y2)  # in order not to exit the borders
             self.canvas_grid.move(point1, x1 - point1_coords[0], y1 - point1_coords[1])
             self.canvas_grid.move(point2, x2 - point2_coords[0], y2 - point2_coords[1])
 
@@ -1119,7 +1115,7 @@ class PlaybackPanel(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-        self.vlc_instance = vlc.Instance() # self.vlc_instance = vlc.Instance('--no-ts-trust-pcr','--ts-seek-percent')
+        self.vlc_instance = vlc.Instance()  # self.vlc_instance = vlc.Instance('--no-ts-trust-pcr','--ts-seek-percent')
         self.player = self.vlc_instance.media_player_new()
         self.filename = None
         self.player.set_hwnd(self.winfo_id())
@@ -1137,7 +1133,7 @@ class PlaybackPanel(Frame):
 
     def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
         video_size_x, video_size_y = window_x, window_y
-        
+
         if window_x / video_res_x > window_y / video_res_y:
             video_size_x = window_y * video_res_x / video_res_y
         else:
@@ -1155,7 +1151,7 @@ class PlaybackPanel(Frame):
 
     def on_click_released(self, event):
         self.config(cursor='')
-        
+
     def on_click(self, event=None):
         if not self.parent.side_bar.is_clock_set():
             return
@@ -1165,7 +1161,7 @@ class PlaybackPanel(Frame):
             return
         if self.player.get_time() < 0:
             return
-        
+
         identities = ", ".join(self.parent.side_bar.identity.get_selected_items())
         events = ", ".join(self.parent.side_bar.events.get_selected_items())
         if len(events) == 0:
@@ -1185,7 +1181,7 @@ class PlaybackPanel(Frame):
             attribute_on_cell = 'None'
 
         session_timestamp = self.player.get_time()-control_block.cached['session_timestamp']['value']
-        self.parent.add_item(self.player.get_time(),session_timestamp,identities,events,self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
+        self.parent.add_item(self.player.get_time(), session_timestamp, identities, events, self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
 
     def on_media_reached_end(self):
         self.player.set_time(0)
@@ -1216,14 +1212,14 @@ class PlaybackPanel(Frame):
             self.on_open()
         else:
             if self.player.get_state() == vlc.State.Ended:
-               self.player.set_media(self.media)
+                self.player.set_media(self.media)
             self.parent.control_bar.on_play()
             self.parent.side_bar.on_play()
 
     def on_open(self):
         self.on_stop()
         p = pathlib.Path(os.path.expanduser(configuration.config['last_path']))
-        fullname = askopenfilename(initialdir = p, title = "Select media",filetypes = (("All Files","*.*"),("MP4 Video","*.mp4"),("AVCHD Video","*.mts")))
+        fullname = askopenfilename(initialdir=p, title="Select media", filetypes=(("All Files", "*.*"), ("MP4 Video", "*.mp4"), ("AVCHD Video", "*.mts")))
         if os.path.isfile(fullname):
             dirname = os.path.dirname(fullname)
             filename = os.path.basename(fullname)
@@ -1241,7 +1237,7 @@ class PlaybackPanel(Frame):
             self.parent.control_bar.on_play()
             self.parent.side_bar.on_play()
             self.player.set_rate(configuration.config['speed'])
-            
+
     def OnTimer(self):
         if self.player == None or self.player.get_time() == -1:
             return
@@ -1253,7 +1249,7 @@ class PlaybackPanel(Frame):
     def on_next_frame(self, event=None):
         self.player.next_frame()
 
-    def set_speed(self,speed):
+    def set_speed(self, speed):
         self.player.set_rate(speed)
 
     def on_speed_up(self):
@@ -1319,7 +1315,7 @@ class PlaybackPanel(Frame):
             volume = 100
         self.player.audio_set_volume(volume)
         self.parent.status_bar.status_label.config(text="Volume: " + str(self.parent.control_bar.volslider.get()) + '%')
-    
+
     def set_text_on_screen(self, text):
         self.player.video_set_marquee_int(0, 1)
         self.player.video_set_marquee_int(6, 48)
@@ -1341,6 +1337,7 @@ class PlaybackPanel(Frame):
 
     def get_video_name(self):
         return self.player.get_title()
+
 
 class SideBar(Frame):
     class UpperBar(Frame):
@@ -1366,18 +1363,17 @@ class SideBar(Frame):
 
         self.upper_bar = SideBar.UpperBar(self)
         self.upper_bar_spacer = ttk.Separator(self, orient=HORIZONTAL)
-        self.identity = ListBox(self, 'identity_list','Bird')
+        self.identity = ListBox(self, 'identity_list', 'Bird')
         self.events = ListBox(self, 'event_list', 'Event')
         self.description = Description(self)
         self.description_spacer = ttk.Separator(self, orient=HORIZONTAL)
 
         self.upper_bar.pack(fill=X)
-        self.upper_bar_spacer.pack(fill=X,pady=5)
+        self.upper_bar_spacer.pack(fill=X, pady=5)
         self.identity.pack(pady=2)
         self.events.pack(pady=2)
         self.description.pack(fill=X)
-        self.description_spacer.pack(fill=X,pady=5)
-
+        self.description_spacer.pack(fill=X, pady=5)
 
     def on_set_clock_click(self):
         if control_block.cached['session_timestamp']['is_set'] == 1:
@@ -1411,7 +1407,6 @@ class SideBar(Frame):
 
         self.parent.playback_panel.grid_reset(generalReset=True)
 
-
     def is_clock_set(self):
         return control_block.cached['session_timestamp']['is_set'] == 1
 
@@ -1421,7 +1416,7 @@ class SideBar(Frame):
         if not self.parent.playback_panel.is_media_loaded():
             return
         last_export_path = pathlib.Path(os.path.expanduser(configuration.config['last_export_path']))
-        full_path = asksaveasfilename(initialdir = last_export_path, title = "Set Export Location",filetypes = [("CSV File (*.csv)","*.csv")])
+        full_path = asksaveasfilename(initialdir=last_export_path, title="Set Export Location", filetypes=[("CSV File (*.csv)", "*.csv")])
         if not full_path.endswith('.csv'):
             full_path += '.csv'
 
@@ -1438,6 +1433,7 @@ class SideBar(Frame):
     def is_grid_set(self):
         return control_block.cached['grid']['is_set'] == 1
 
+
 class MenuBar(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
@@ -1451,7 +1447,7 @@ class MenuBar(Frame):
         self.menu.add_cascade(label="File", menu=file_menu)
 
         session_menu = Menu(self.menu, tearoff=0)
-        session_menu.add_command(label="Reset grid",command=self.parent.grid.grid_reset)
+        session_menu.add_command(label="Reset grid", command=self.parent.grid.grid_reset)
         session_menu.add_command(label="Reset clock")
         session_menu.add_command(label="Reset CSV")
         session_menu.insert_separator(3)
@@ -1459,10 +1455,10 @@ class MenuBar(Frame):
         self.menu.add_cascade(label="Session", menu=session_menu)
 
         events_menu = Menu(self.menu, tearoff=0)
-        events_menu.add_command(label="Open event manager", accelerator='Ctrl+M',command=parent.on_open_event_manager_menu_click)
+        events_menu.add_command(label="Open event manager", accelerator='Ctrl+M', command=parent.on_open_event_manager_menu_click)
         events_menu.insert_separator(1)
-        events_menu.add_command(label="Add general event", accelerator='Ctrl+E',command=self.parent.playback_panel.on_click)
-        events_menu.add_command(label="Undo last event", accelerator='Ctrl+Z',command=self.parent.on_delete_last_event)
+        events_menu.add_command(label="Add general event", accelerator='Ctrl+E', command=self.parent.playback_panel.on_click)
+        events_menu.add_command(label="Undo last event", accelerator='Ctrl+Z', command=self.parent.on_delete_last_event)
         self.menu.add_cascade(label="Events", menu=events_menu)
 
         help_menu = Menu(self.menu, tearoff=0)
@@ -1478,11 +1474,10 @@ class MenuBar(Frame):
         tau_logo = PhotoImage(file='./media/tau.png')
         Label(self.about_window, image=tau_logo).pack()
         ttk.Separator(self.about_window, orient=HORIZONTAL).pack(fill=X, pady=5)
-        
-        Label(self.about_window, justify=LEFT, anchor=W, text="Poke-A-Bird v" + __version__ + "\n\nFinal Project 2018, Faculty of Engineering,\nTel Aviv University\n\nDeveloped by:\nElad Yacovi\nNerya Meshulam").pack(fill=X,padx=5)
+
+        Label(self.about_window, justify=LEFT, anchor=W, text="Poke-A-Bird v" + __version__ + "\n\nFinal Project 2018, Faculty of Engineering,\nTel Aviv University\n\nDeveloped by:\nElad Yacovi\nNerya Meshulam").pack(fill=X, padx=5)
         self.about_window.wait_window()
         self.about_window = None
-
 
 
 class MainApplication(Frame):
@@ -1532,13 +1527,13 @@ class MainApplication(Frame):
         self.event_manager = None
         self.grid = Grid(self)
         self.parent.protocol("WM_DELETE_WINDOW", self.on_exit)
-        self.temp =0
+        self.temp = 0
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
         main_application_config = configuration.config['main_application']
         self.parent.geometry("%dx%d%+d%+d" % (main_application_config['size_x'], main_application_config['size_y'],
-                             main_application_config['pos_x'], main_application_config['pos_y']))
+                                              main_application_config['pos_x'], main_application_config['pos_y']))
 
         self.status_bar = self.StatusBar(self)
         self.side_bar = SideBar(self)
@@ -1567,14 +1562,14 @@ class MainApplication(Frame):
         HH = seconds // 3600
         MM = seconds // 60
         SS = seconds % 60
-        return "{}{:02.0f}:{:02.0f}:{:06.3f}".format(sign,HH,MM,SS)
+        return "{}{:02.0f}:{:02.0f}:{:06.3f}".format(sign, HH, MM, SS)
 
     def translate_to_friendly_record(self, record):
         friendly_record = list.copy(record)
         friendly_record[0] = self.translate_timestamp_to_clock(friendly_record[0]/1000)
         friendly_record[1] = self.translate_timestamp_to_clock(friendly_record[1]/1000)
-        return friendly_record 
-    
+        return friendly_record
+
     def write_record_to_csv(self, record):
         line = self.translate_to_friendly_record(record)
         line += [os.path.basename(control_block.cached['export_location']['value'])]
@@ -1582,8 +1577,8 @@ class MainApplication(Frame):
         with open(control_block.cached['export_location']['value'], "a", encoding='utf-8', newline='') as events_file:
             csv.writer(events_file, delimiter=',').writerow(line)
 
-    def add_item(self, video_timestamp, session_timestamp, identities,events ,description, pos_x, pos_y, attribute):
-        record = [video_timestamp, session_timestamp, identities,events,description , pos_x, pos_y, attribute ]
+    def add_item(self, video_timestamp, session_timestamp, identities, events, description, pos_x, pos_y, attribute):
+        record = [video_timestamp, session_timestamp, identities, events, description, pos_x, pos_y, attribute]
         if len(control_block.events) >= configuration.config['event_manager']['number_of_events']:
             old_record = control_block.events.pop(0)
             self.write_record_to_csv(old_record)
@@ -1611,7 +1606,7 @@ class MainApplication(Frame):
         if not self.event_manager:
             self.event_manager = EventManager(self, takefocus=True)
 
-    def on_delete_last_event(self,event=None):
+    def on_delete_last_event(self, event=None):
         if not control_block.events:
             return
 
@@ -1641,7 +1636,6 @@ class MainApplication(Frame):
                 self.event_manager.on_media_stop()
             self.side_bar.on_reset()
 
-
     def dump_events_to_file(self):
         if not self.side_bar.is_location_set():
             if len(control_block.events) > 0:
@@ -1664,6 +1658,7 @@ class MainApplication(Frame):
         self.bind_all("<Control-Key-r>", self.on_reset)
         self.bind_all("<Right>", self.playback_panel.on_next_frame)
 
+
 if __name__ == "__main__":
     root = Tk()
     root.minsize(width=988, height=551)
@@ -1675,4 +1670,3 @@ if __name__ == "__main__":
     mainapp.pack(side="top", fill="both", expand=True)
     root.mainloop()
     mainapp.control_bar.timer.stop()
-
