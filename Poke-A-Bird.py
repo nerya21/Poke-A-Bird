@@ -724,7 +724,7 @@ class PlaybackPanel(Frame):
     def on_click_released(self, event):
         self.config(cursor='')
         
-    def on_click(self, event):
+    def on_click(self, event=None):
         if not self.parent.side_bar.is_clock_set():
             return
         if not self.parent.side_bar.is_location_set():
@@ -733,24 +733,28 @@ class PlaybackPanel(Frame):
             return
         if self.player.get_time() < 0:
             return
-
-        relative_click = self.get_relative_location(event.x, event.y, self.winfo_width(), self.winfo_height(),
-                                                    self.winfo_screenwidth(), self.winfo_screenheight())
-        if relative_click[0] == -1 or relative_click[1] == -1:
-            return
-            
+        
         identities = ", ".join(self.parent.side_bar.identity.get_selected_items())
         events = ", ".join(self.parent.side_bar.events.get_selected_items())
         if len(events) == 0:
             return
-        cell = self.find_grid_cell(relative_click)
-        if cell == (-1, -1):
-            return
-        #print("(%d, %d)" % (cell[0], cell[1])) #put it to the event manager
-        attribute_on_cell = "None" if (len(self.grid_attributes) == 0 or self.grid_attributes[cell[0]] == None or self.grid_attributes[cell[0]][cell[1]] == None) else self.grid_attributes[cell[0]][cell[1]]
+
+        if event and event.type == EventType.ButtonPress:
+            relative_click = self.get_relative_location(event.x, event.y, self.winfo_width(), self.winfo_height(), self.winfo_screenwidth(), self.winfo_screenheight())
+            if relative_click[0] == -1 or relative_click[1] == -1:
+                return
+            cell = self.find_grid_cell(relative_click)
+            if cell == (-1, -1):
+                return
+            attribute_on_cell = "None" if (len(self.grid_attributes) == 0 or self.grid_attributes[cell[0]] == None or self.grid_attributes[cell[0]][cell[1]] == None) else self.grid_attributes[cell[1]][cell[0]]
+            self.config(cursor='gobbler')
+        else:
+            cell = (-1, -1)
+            attribute_on_cell = 'None'
+
         session_timestamp = self.player.get_time()-control_block.cached['session_timestamp']['value']
         self.parent.add_item(self.player.get_time(),session_timestamp,identities,events,self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
-        self.config(cursor='gobbler')
+
     def on_media_reached_end(self):
         self.player.set_time(0)
 
@@ -1004,6 +1008,10 @@ class PlaybackPanel(Frame):
         else: #canvas clicks after this calibration
             return
 
+    def load_attributes_from_clipboard(self):
+        clipboard = self.parent.parent.clipboard_get()
+        self.grid_attributes = [line.split('\t') for line in clipboard.split('\n')][:-1]
+
     def grid_create_inner(self, modify=False, first_use=False, from_cache=False, json_lines=None, json_points=None): #3rd phase of calibration - create the inner lines and points
         if modify: #remove current inner grid (and later create one from scratch)
             for line in self.grid_inner_lines:
@@ -1024,9 +1032,11 @@ class PlaybackPanel(Frame):
             Button(self.grid_window, text="Reset", height=4, width=12,
                    command=lambda: self.grid_reset()).grid(row=2, column=5, columnspan=2)
             self.attributes_label = Label(self.grid_window, text="")
-            self.attributes_label.grid(row=4, column=5)
+            self.attributes_label.grid(row=5, column=5)
             Button(self.grid_window, text="Load Attributes", height=4, width=12,
                    command=lambda: self.grid_load_attributes()).grid(row=3, column=5, columnspan=2)
+            Button(self.grid_window, text="Load Attributes from clipboard", height=4, width=12,
+                   command=self.load_attributes_from_clipboard).grid(row=4, column=5, columnspan=2)
         if from_cache:
             for json_line in json_lines:
                 self.grid_inner_lines.append(
@@ -1496,7 +1506,7 @@ class MenuBar(Frame):
         events_menu = Menu(self.menu, tearoff=0)
         events_menu.add_command(label="Open event manager", accelerator='Ctrl+M',command=parent.on_open_event_manager_menu_click)
         events_menu.insert_separator(1)
-        events_menu.add_command(label="Add general event", accelerator='Ctrl+E')
+        events_menu.add_command(label="Add general event", accelerator='Ctrl+E',command=self.parent.playback_panel.on_click)
         events_menu.add_command(label="Undo last event", accelerator='Ctrl+Z',command=self.parent.on_delete_last_event)
         self.menu.add_cascade(label="Events", menu=events_menu)
 
@@ -1509,13 +1519,12 @@ class MenuBar(Frame):
             return
         self.about_window = Toplevel(self.parent.parent)
         self.about_window.resizable(0, 0)
-        self.about_window.geometry("400x415")
+        self.about_window.geometry("260x350")
         tau_logo = PhotoImage(file='./media/tau.png')
         Label(self.about_window, image=tau_logo).pack()
         ttk.Separator(self.about_window, orient=HORIZONTAL).pack(fill=X, pady=5)
         
         Label(self.about_window, justify=LEFT, anchor=W, text="Poke-A-Bird v" + __version__ + "\n\nFinal Project 2018, Faculty of Engineering,\nTel Aviv University\n\nDeveloped by:\nElad Yacovi\nNerya Meshulam").pack(fill=X,padx=5)
-        Button(self.about_window, text="OK", width=5, command=self.about_window.destroy).pack( pady=10)
         self.about_window.wait_window()
         self.about_window = None
 
@@ -1670,8 +1679,8 @@ class MainApplication(Frame):
             json.dump(configuration.config, fp)
         self.parent.destroy()
 
-    def on_reset(self):
-        if not self.playback_panel.is_media_loaded:
+    def on_reset(self, event=None):
+        if not self.playback_panel.is_media_loaded():
             return
         if messagebox.askokcancel("Reset Session", 'Are you sure you wish to reset\nall session settings?'):
             self.dump_events_to_file()
@@ -1698,7 +1707,9 @@ class MainApplication(Frame):
         self.playback_panel.bind("<MouseWheel>", self.playback_panel.on_speed_change)
         self.control_bar.timeslider.bind("<MouseWheel>", self.control_bar.on_mouse_wheel)
         self.bind_all("<space>", self.playback_panel.on_play_pause)
+        self.bind_all("<Control-Key-e>", self.playback_panel.on_click)
         self.bind_all("<Control-Key-m>", self.on_open_event_manager_menu_click)
+        self.bind_all("<Control-Key-r>", self.on_reset)
         self.bind_all("<Right>", self.playback_panel.on_next_frame)
 
 def callback(event):
