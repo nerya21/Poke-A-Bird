@@ -45,148 +45,7 @@ from Pmw import Balloon
 __version__ = '0.3'
 
 #genImageProjective class is used for getting the right prespective of the grid
-class genImageProjective:
-    def __init__(self):
-        self.sourceArea = [0, 0, 0, 0]
-        self.destArea = [0, 0, 0, 0]
-        self.coefficientsComputed = False
-        self.vc = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-    def Terminate(self, retValue):
-        self.coefficientsComputed = True if retValue == 0 else False
-        return retValue
-
-    def computeCoeefficients(self):
-        retValue = 0
-        a = [[0 for x in range(8)] for y in range(8)] #8x8 matrix A
-        b = self.vc #rhs vector of primed coords X'; coeffs returned in vc[]
-
-        b[0] = self.destArea[0][0] #take the x value
-        b[1] = self.destArea[0][1] #take the y value
-        b[2] = self.destArea[1][0]
-        b[3] = self.destArea[1][1]
-        b[4] = self.destArea[2][0]
-        b[5] = self.destArea[2][1]
-        b[6] = self.destArea[3][0]
-        b[7] = self.destArea[3][1]
-
-        a[0][0] = self.sourceArea[0][0]
-        a[0][1] = self.sourceArea[0][1]
-        a[0][2] = 1
-        a[0][6] = -self.sourceArea[0][0] * b[0]
-        a[0][7] = -self.sourceArea[0][1] * b[0]
-        a[1][3] = self.sourceArea[0][0]
-        a[1][4] = self.sourceArea[0][1]
-        a[1][5] = 1
-        a[1][6] = -self.sourceArea[0][0] * b[1]
-        a[1][7] = -self.sourceArea[0][1] * b[1]
-        a[2][0] = self.sourceArea[1][0]
-        a[2][1] = self.sourceArea[1][1]
-        a[2][2] = 1
-        a[2][6] = -self.sourceArea[1][0] * b[2]
-        a[2][7] = -self.sourceArea[1][1] * b[2]
-        a[3][3] = self.sourceArea[1][0]
-        a[3][4] = self.sourceArea[1][1]
-        a[3][5] = 1
-        a[3][6] = -self.sourceArea[1][0] * b[3]
-        a[3][7] = -self.sourceArea[1][1] * b[3]
-        a[4][0] = self.sourceArea[2][0]
-        a[4][1] = self.sourceArea[2][1]
-        a[4][2] = 1
-        a[4][6] = -self.sourceArea[2][0] * b[4]
-        a[4][7] = -self.sourceArea[2][1] * b[4]
-        a[5][3] = self.sourceArea[2][0]
-        a[5][4] = self.sourceArea[2][1]
-        a[5][5] = 1
-        a[5][6] = -self.sourceArea[2][0] * b[5]
-        a[5][7] = -self.sourceArea[2][1] * b[5]
-        a[6][0] = self.sourceArea[3][0]
-        a[6][1] = self.sourceArea[3][1]
-        a[6][2] = 1
-        a[6][6] = -self.sourceArea[3][0] * b[6]
-        a[6][7] = -self.sourceArea[3][1] * b[6]
-        a[7][3] = self.sourceArea[3][0]
-        a[7][4] = self.sourceArea[3][1]
-        a[7][5] = 1
-        a[7][6] = -self.sourceArea[3][0] * b[7]
-        a[7][7] = -self.sourceArea[3][1] * b[7]
-
-        retValue = self.gaussjordan(a, b, 8)
-        return self.Terminate(retValue)
-
-    def mapSourceToDestPoint(self, sourcePoint): #return dest point
-        if self.coefficientsComputed:
-            factor = (1.0 / (self.vc[6] * sourcePoint[0] + self.vc[7] * sourcePoint[1] + 1.0))
-            destPoint_x = (factor * (self.vc[0] * sourcePoint[0] + self.vc[1] * sourcePoint[1] + self.vc[2]))
-            destPoint_y = (factor * (self.vc[3] * sourcePoint[0] + self.vc[4] * sourcePoint[1] + self.vc[5]))
-            return destPoint_x, destPoint_y
-        else:
-            return sourcePoint[0], sourcePoint[1]
-
-    def gaussjordan(self, a, b, n):
-        retValue = 0
-        icol, irow = 0, 0
-        indexc, indexr , ipiv = [0]*n, [0]*n, [0]*n
-        big, dum, pivinv, temp = 0.0, 0.0, 0.0, 0.0
-
-        if (a == None):
-            retValue = -1
-            self.Terminate(retValue)
-
-        if (b == None):
-            retValue = -2
-            self.Terminate(retValue)
-
-        for i in range(n):
-            big = 0.0
-            for j in range(n):
-                if ipiv[j] != 1:
-                    for k in range(n):
-                        if ipiv[k] == 0:
-                            if math.fabs(a[j][k]) >= big:
-                                big = math.fabs(a[j][k])
-                                irow = j
-                                icol = k
-                        elif ipiv[k] > 1:
-                            retValue = -6
-                            self.Terminate(retValue)
-            ipiv[icol] += 1
-
-            if irow != icol:
-                for l in range(n):
-                    temp = a[irow][l]
-                    a[irow][l] = a[icol][l]
-                    a[icol][l] = temp
-                temp = b[irow]
-                b[irow] = b[icol]
-                b[icol] = temp
-            indexr[i] = irow
-            indexc[i] = icol
-            if a[icol][icol] == 0.0:
-                retValue = -7
-                self.Terminate(retValue)
-            pivinv = 1.0 / a[icol][icol]
-            a[icol][icol] = 1.0
-            for l in range(n):
-                a[icol][l] *= pivinv
-            b[icol] *= pivinv
-
-            for ll in range(n):
-                if ll != icol:
-                    dum = a[ll][icol]
-                    a[ll][icol] = 0.0
-                    for l in range(n):
-                        a[ll][l] -= a[icol][l] * dum
-                    b[ll] -= b[icol] * dum
-
-        for l in range(n-1, -1, -1):
-            if indexr[l] != indexc[l]:
-                for k in range(n):
-                    temp = a[k][indexr[l]]
-                    a[k][indexr[l]] = a[k][indexc[l]]
-                    a[k][indexc[l]] = temp
-
-        return self.Terminate(retValue)
 
 
 
@@ -200,6 +59,7 @@ class ControlBlock:
         self.cached = self.default_cache = {'total_number_of_events': 0,
                                             'session_timestamp': {'is_set': 0, 'value': 0},
                                             'export_location': {'is_set': 0, 'value': ''},
+                                            'grid': {'is_set': 0, 'value': {"rows": 0, "cols": 0, "borders": [], "inner_lines": [], "inner_points": [], "attr_path": ''}},
                                             'media_name': '',
                                             'timestamp_type': 'global'}
 
@@ -652,18 +512,158 @@ class Description(Frame):
         self.clear()
         return description
 
-class PlaybackPanel(Frame):
+class Grid(Toplevel):
+
+    class GenImageProjective:
+        def __init__(self, source_area, dest_area):
+            self.sourceArea = source_area
+            self.destArea = dest_area
+            self.coefficientsComputed = False
+            self.vc = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+        def Terminate(self, retValue):
+            self.coefficientsComputed = True if retValue == 0 else False
+            return retValue
+
+        def computeCoeefficients(self):
+            retValue = 0
+            a = [[0 for x in range(8)] for y in range(8)] #8x8 matrix A
+            b = self.vc #rhs vector of primed coords X'; coeffs returned in vc[]
+
+            b[0] = self.destArea[0][0] #take the x value
+            b[1] = self.destArea[0][1] #take the y value
+            b[2] = self.destArea[1][0]
+            b[3] = self.destArea[1][1]
+            b[4] = self.destArea[2][0]
+            b[5] = self.destArea[2][1]
+            b[6] = self.destArea[3][0]
+            b[7] = self.destArea[3][1]
+
+            a[0][0] = self.sourceArea[0][0]
+            a[0][1] = self.sourceArea[0][1]
+            a[0][2] = 1
+            a[0][6] = -self.sourceArea[0][0] * b[0]
+            a[0][7] = -self.sourceArea[0][1] * b[0]
+            a[1][3] = self.sourceArea[0][0]
+            a[1][4] = self.sourceArea[0][1]
+            a[1][5] = 1
+            a[1][6] = -self.sourceArea[0][0] * b[1]
+            a[1][7] = -self.sourceArea[0][1] * b[1]
+            a[2][0] = self.sourceArea[1][0]
+            a[2][1] = self.sourceArea[1][1]
+            a[2][2] = 1
+            a[2][6] = -self.sourceArea[1][0] * b[2]
+            a[2][7] = -self.sourceArea[1][1] * b[2]
+            a[3][3] = self.sourceArea[1][0]
+            a[3][4] = self.sourceArea[1][1]
+            a[3][5] = 1
+            a[3][6] = -self.sourceArea[1][0] * b[3]
+            a[3][7] = -self.sourceArea[1][1] * b[3]
+            a[4][0] = self.sourceArea[2][0]
+            a[4][1] = self.sourceArea[2][1]
+            a[4][2] = 1
+            a[4][6] = -self.sourceArea[2][0] * b[4]
+            a[4][7] = -self.sourceArea[2][1] * b[4]
+            a[5][3] = self.sourceArea[2][0]
+            a[5][4] = self.sourceArea[2][1]
+            a[5][5] = 1
+            a[5][6] = -self.sourceArea[2][0] * b[5]
+            a[5][7] = -self.sourceArea[2][1] * b[5]
+            a[6][0] = self.sourceArea[3][0]
+            a[6][1] = self.sourceArea[3][1]
+            a[6][2] = 1
+            a[6][6] = -self.sourceArea[3][0] * b[6]
+            a[6][7] = -self.sourceArea[3][1] * b[6]
+            a[7][3] = self.sourceArea[3][0]
+            a[7][4] = self.sourceArea[3][1]
+            a[7][5] = 1
+            a[7][6] = -self.sourceArea[3][0] * b[7]
+            a[7][7] = -self.sourceArea[3][1] * b[7]
+
+            retValue = self.gaussjordan(a, b, 8)
+            return self.Terminate(retValue)
+
+        def mapSourceToDestPoint(self, sourcePoint): #return dest point
+            if self.coefficientsComputed:
+                factor = (1.0 / (self.vc[6] * sourcePoint[0] + self.vc[7] * sourcePoint[1] + 1.0))
+                destPoint_x = (factor * (self.vc[0] * sourcePoint[0] + self.vc[1] * sourcePoint[1] + self.vc[2]))
+                destPoint_y = (factor * (self.vc[3] * sourcePoint[0] + self.vc[4] * sourcePoint[1] + self.vc[5]))
+                return destPoint_x, destPoint_y
+            else:
+                return sourcePoint[0], sourcePoint[1]
+
+        def gaussjordan(self, a, b, n):
+            retValue = 0
+            icol, irow = 0, 0
+            indexc, indexr , ipiv = [0]*n, [0]*n, [0]*n
+            big, dum, pivinv, temp = 0.0, 0.0, 0.0, 0.0
+
+            if (a == None):
+                retValue = -1
+                self.Terminate(retValue)
+
+            if (b == None):
+                retValue = -2
+                self.Terminate(retValue)
+
+            for i in range(n):
+                big = 0.0
+                for j in range(n):
+                    if ipiv[j] != 1:
+                        for k in range(n):
+                            if ipiv[k] == 0:
+                                if math.fabs(a[j][k]) >= big:
+                                    big = math.fabs(a[j][k])
+                                    irow = j
+                                    icol = k
+                            elif ipiv[k] > 1:
+                                retValue = -6
+                                self.Terminate(retValue)
+                ipiv[icol] += 1
+
+                if irow != icol:
+                    for l in range(n):
+                        temp = a[irow][l]
+                        a[irow][l] = a[icol][l]
+                        a[icol][l] = temp
+                    temp = b[irow]
+                    b[irow] = b[icol]
+                    b[icol] = temp
+                indexr[i] = irow
+                indexc[i] = icol
+                if a[icol][icol] == 0.0:
+                    retValue = -7
+                    self.Terminate(retValue)
+                pivinv = 1.0 / a[icol][icol]
+                a[icol][icol] = 1.0
+                for l in range(n):
+                    a[icol][l] *= pivinv
+                b[icol] *= pivinv
+
+                for ll in range(n):
+                    if ll != icol:
+                        dum = a[ll][icol]
+                        a[ll][icol] = 0.0
+                        for l in range(n):
+                            a[ll][l] -= a[icol][l] * dum
+                        b[ll] -= b[icol] * dum
+
+            for l in range(n-1, -1, -1):
+                if indexr[l] != indexc[l]:
+                    for k in range(n):
+                        temp = a[k][indexr[l]]
+                        a[k][indexr[l]] = a[k][indexc[l]]
+                        a[k][indexc[l]] = temp
+
+            return self.Terminate(retValue)
 
     def __init__(self, parent, *args, **kwargs):
-        Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-
-        #grid vars
         self.grid_window = None
         self.canvas_grid = None
-        self.grid_borders = list() #outer points - as tuples (x,y)
-        self.grid_points = [None, None, None, None] #outer points - as "oval" instances on canvas
-        self.grid_lines = [None, None, None, None] #outer lines - as "line" instances on canvas
+        self.grid_borders = list() 
+        self.grid_points = [None, None, None, None] 
+        self.grid_lines = [None, None, None, None] 
         self.grid_inner_lines = list()
         self.grid_inner_points = list()
         self.grabbed_obj = None
@@ -675,271 +675,34 @@ class PlaybackPanel(Frame):
         self.grid_attributes = list()
         self.attributes_label = None
         self.attr_file_path = None
-        self.is_grid_set = False
 
-        #video vars
-        self.vlc_instance = vlc.Instance() # self.vlc_instance = vlc.Instance('--no-ts-trust-pcr','--ts-seek-percent')
-        self.player = self.vlc_instance.media_player_new()
-        self.filename = None
-
-
-        self.player.set_hwnd(self.winfo_id())
-        self.player.video_set_mouse_input(False)
-        self.player.video_set_key_input(False)
-        self.bind('<Button-1>', self.on_click)
-        self.bind('<ButtonRelease-1>', self.on_click_released)
-        self.parent.side_bar.upper_bar.calibrate_button.config(command=self.on_set_grid)
-        self.events = self.player.event_manager()
-        self.events.event_attach(vlc.EventType.MediaPlayerEndReached, self.EventManager)
-    # -------------------------- Video Functions -----------------------------------
-    def EventManager(self, event):
-        if event.type == vlc.EventType.MediaPlayerEndReached:
-            self.parent.control_bar.on_media_reached_end()
-
-    def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
-        video_size_x, video_size_y = window_x, window_y
-        
-        if window_x / video_res_x > window_y / video_res_y:
-            video_size_x = window_y * video_res_x / video_res_y
-        else:
-            video_size_y = window_x * video_res_y / video_res_x
-
-        rel_click_x = (click_x - (abs(window_x - video_size_x) / 2)) / video_size_x
-        rel_click_y = (click_y - (abs(window_y - video_size_y) / 2)) / video_size_y
-
-        if rel_click_x < 0 or rel_click_x > 1:
-            rel_click_x = -1
-        if rel_click_y < 0 or rel_click_y > 1:
-            rel_click_y = -1
-
-        return rel_click_x, rel_click_y
-
-    def on_click_released(self, event):
-        self.config(cursor='')
-        
-    def on_click(self, event=None):
-        if not self.parent.side_bar.is_clock_set():
-            return
-        if not self.parent.side_bar.is_location_set():
-            return
-        if not self.is_grid_set:
-            return
-        if self.player.get_time() < 0:
-            return
-        
-        identities = ", ".join(self.parent.side_bar.identity.get_selected_items())
-        events = ", ".join(self.parent.side_bar.events.get_selected_items())
-        if len(events) == 0:
+    def set_grid(self):
+        if not self.parent.playback_panel.is_media_loaded():
             return
 
-        if event and event.type == EventType.ButtonPress:
-            relative_click = self.get_relative_location(event.x, event.y, self.winfo_width(), self.winfo_height(), self.winfo_screenwidth(), self.winfo_screenheight())
-            if relative_click[0] == -1 or relative_click[1] == -1:
-                return
-            cell = self.find_grid_cell(relative_click)
-            if cell == (-1, -1):
-                return
-            attribute_on_cell = "None" if (len(self.grid_attributes) == 0 or self.grid_attributes[cell[0]] == None or self.grid_attributes[cell[0]][cell[1]] == None) else self.grid_attributes[cell[1]][cell[0]]
-            self.config(cursor='gobbler')
-        else:
-            cell = (-1, -1)
-            attribute_on_cell = 'None'
-
-        session_timestamp = self.player.get_time()-control_block.cached['session_timestamp']['value']
-        self.parent.add_item(self.player.get_time(),session_timestamp,identities,events,self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
-
-    def on_media_reached_end(self):
-        self.player.set_time(0)
-
-    def on_pause(self):
-        self.player.pause()
-        self.parent.control_bar.on_pause()
-
-    def on_stop(self):
-        self.player.stop()
-        self.player.set_media(None)
-        self.parent.control_bar.time_slider.set(0)
-        self.parent.dump_events_to_file()
-        control_block.dump_cache()
-        if self.parent.event_manager:
-            self.parent.event_manager.on_media_stop()
-        self.parent.control_bar.on_stop()
-        self.parent.side_bar.on_stop()
-
-    def on_play_pause(self, event=None):
-        if self.player.get_state() == vlc.State.Paused:
-            self.on_play()
-        elif self.player.get_state() == vlc.State.Playing:
-            self.on_pause()
-
-    def on_play(self):
-        if not self.player.get_media():
-            self.on_open()
-        else:
-            if self.player.get_state() == vlc.State.Ended:
-               self.player.set_media(self.media)
-            self.parent.control_bar.on_play()
-            self.parent.side_bar.on_play()
-
-    def on_open(self):
-        self.on_stop()
-        p = pathlib.Path(os.path.expanduser(configuration.config['last_path']))
-        fullname = askopenfilename(initialdir = p, title = "Select media",filetypes = (("All Files","*.*"),("MP4 Video","*.mp4"),("AVCHD Video","*.mts")))
-        if os.path.isfile(fullname):
-            dirname = os.path.dirname(fullname)
-            filename = os.path.basename(fullname)
-            self.filename = filename
-            configuration.config['last_path'] = dirname
-            self.media = self.vlc_instance.media_new(str(os.path.join(dirname, filename)))
-            self.player.set_media(self.media)
-            control_block.current_media_hash = md5(fullname)
-            control_block.load_cache()
-            control_block.cached['media_name'] = filename
-            if self.parent.event_manager:
-                self.parent.event_manager.on_media_open()
-
-            self.player.play()
-            self.parent.control_bar.on_play()
-            self.parent.side_bar.on_play()
-            self.player.set_rate(configuration.config['speed'])
-            
-    def OnTimer(self):
-        if self.player == None or self.player.get_time() == -1:
-            return
-
-        self.parent.control_bar.time_slider.config(command=self.scale_sel_without_media_update, to=self.player.get_length())
-        self.parent.control_bar.time_slider.set(self.player.get_time())
-        self.parent.control_bar.time_slider.config(command=self.scale_sel)
-
-    def on_next_frame(self, event=None):
-        self.player.next_frame()
-
-    def set_speed(self,speed):
-        self.player.set_rate(speed)
-
-    def on_speed_up(self):
-        if self.player.get_rate() == 0.25:
-            self.player.set_rate(0.3)
-        elif self.player.get_rate() + 0.1 > 2.0:
-            self.player.set_rate(2.0)
-        else:
-            self.player.set_rate(self.player.get_rate() + 0.1)
-        self.set_text_on_screen("Speed: {:0>.2f}".format(self.player.get_rate()))
-        configuration.config['speed'] = self.player.get_rate()
-
-    def on_speed_down(self):
-        if self.player.get_rate() - 0.1 < 0.25:
-            self.player.set_rate(0.25)
-        else:
-            self.player.set_rate(self.player.get_rate() - 0.1)
-        self.set_text_on_screen("Speed: {:0>.2f}".format(self.player.get_rate()))
-        configuration.config['speed'] = self.player.get_rate()
-
-    def on_speed_change(self, event):
-        if event.delta < 0:
-            self.on_speed_down()
-        else:
-            self.on_speed_up()
-
-    def on_zoom_in(self):
-        if (self.player.video_get_scale() == 0.0):
-            self.player.video_set_scale(1)
-        elif (self.player.video_get_scale() + 0.1 > 2):
-            self.player.video_set_scale(2)
-        else:
-            self.player.video_set_scale(self.player.video_get_scale() + 0.1)
-
-    def on_zoom_out(self):
-        if self.player.video_get_scale() - 0.1 < 1:
-            self.player.video_set_scale(0)
-        else:
-            self.player.video_set_scale(self.player.video_get_scale() - 0.1)
-
-    def on_full_screen(self):
-        if not self.parent.parent.attributes("-fullscreen"):
-            self.parent.parent.attributes('-fullscreen', True)
-        else:
-            self.parent.parent.attributes('-fullscreen', False)
-
-    def scale_sel_without_media_update(self, evt):
-        milliseconds = self.parent.control_bar.scale_var.get()
-        if not (milliseconds <= self.player.get_length() and milliseconds >= 0):
-            return 0
-        self.parent.control_bar.update_time_label(milliseconds/1000)
-        return milliseconds
-
-    def scale_sel(self, event):
-        milliseconds = self.scale_sel_without_media_update(event)
-        self.player.set_time(int(milliseconds))
-
-    def on_volume_change(self, evt):
-        if self.player == None:
-            return
-        volume = self.parent.control_bar.volume_var.get()
-        if volume > 100:
-            volume = 100
-        self.player.audio_set_volume(volume)
-        self.parent.status_bar.status_label.config(text="Volume: " + str(self.parent.control_bar.volslider.get()) + '%')
-    
-    def set_text_on_screen(self, text):
-        self.player.video_set_marquee_int(0, 1)
-        self.player.video_set_marquee_int(6, 48)
-        self.player.video_set_marquee_int(7, 200)
-        self.player.video_set_marquee_string(1, text)
-        self.player.video_get_marquee_string(1)
-
-    def is_media_loaded(self):
-        return self.player.get_media()
-
-    def get_media_length(self):
-        return self.player.get_length()
-
-    def get_current_timestamp(self):
-        return self.player.get_time()
-
-    def goto_timestamp(self, timestamp):
-        self.parent.playback_panel.player.set_time(timestamp)
-
-    def get_video_name(self):
-        return self.player.get_title()
-
-    # --------------------- Grid Functions ------------------------------
-
-    def on_set_grid(self):
-        if not self.player.get_media():
-            self.on_open()
-        else:
-            if self.player.get_state() == vlc.State.Playing:
-                self.on_pause()
-            if self.grid_window == None:
-                self.parent.side_bar.upper_bar.calibrate_button.config(relief=RAISED)
-                self.is_grid_set = False
-                self.player.video_take_snapshot(0, 'snapshot.tmp.png', 0, 0)
-                print("asdasdasd")
-                self.grid_window = Toplevel(self.parent.parent)
-                self.grid_window.title("Grid Calibration: Top Left")
-                baseheight = self.winfo_height() + 10
-                snapshot = Image.open('snapshot.tmp.png')
-                hpercent = (baseheight / float(snapshot.size[1]))
-                wsize = int((float(snapshot.size[0]) * float(hpercent)))
-                snapshot = snapshot.resize((wsize, baseheight), PIL.Image.ANTIALIAS)
-                snapshot.save('snapshot_r.tmp.png')
-                snapshot = PhotoImage(file='snapshot_r.tmp.png')
-                self.canvas_grid = Canvas(self.grid_window, height=snapshot.height(), width=snapshot.width())
-                self.canvas_grid.grid(row=0, column=0, rowspan=12, columnspan=4)
-                self.canvas_grid.create_image(0, 0, anchor=NW, image=snapshot)
-                entryInt1 = IntVar() #cols
-                entryInt2 = IntVar() #rows
-                Label(self.grid_window, text="Rows").grid(row=0, column=5)
-                Label(self.grid_window, text="Cols").grid(row=1, column=5)
-                Entry(self.grid_window, textvariable=entryInt2, width=20).grid(row=0, column=6)
-                Entry(self.grid_window, textvariable=entryInt1, width=20).grid(row=1, column=6)
-                Button(self.grid_window, text="OK", height=4, width=10, command=lambda: self.grid_get_cols_rows(entryInt1.get(), entryInt2.get())).grid(row=2, column=5, columnspan=2)
-                if (os.path.isfile("gridcache/%s.json" % self.filename)):
-                    self.grid_load_from_cache()
-                self.grid_window.wait_window()
-            else:
-                self.grid_window.deiconify()
+        self.parent.playback_panel.player.video_take_snapshot(0, 'snapshot.tmp.png', 0, 0)
+        self.grid_window = Toplevel(self.parent.parent)
+        self.grid_window.title("Grid Calibration: Top Left")
+        baseheight = self.parent.playback_panel.winfo_height() + 10
+        snapshot = Image.open('snapshot.tmp.png')
+        hpercent = (baseheight / float(snapshot.size[1]))
+        wsize = int((float(snapshot.size[0]) * float(hpercent)))
+        snapshot = snapshot.resize((wsize, baseheight), PIL.Image.ANTIALIAS)
+        snapshot.save('snapshot_r.tmp.png')
+        snapshot = PhotoImage(file='snapshot_r.tmp.png')
+        self.canvas_grid = Canvas(self.grid_window, height=snapshot.height(), width=snapshot.width())
+        self.canvas_grid.grid(row=0, column=0, rowspan=12, columnspan=4)
+        self.canvas_grid.create_image(0, 0, anchor=NW, image=snapshot)
+        entryInt1 = IntVar() #cols
+        entryInt2 = IntVar() #rows
+        Label(self.grid_window, text="Rows").grid(row=0, column=5)
+        Label(self.grid_window, text="Cols").grid(row=1, column=5)
+        Entry(self.grid_window, textvariable=entryInt2, width=20).grid(row=0, column=6)
+        Entry(self.grid_window, textvariable=entryInt1, width=20).grid(row=1, column=6)
+        Button(self.grid_window, text="OK", height=4, width=10, command=lambda: self.grid_get_cols_rows(entryInt1.get(), entryInt2.get())).grid(row=2, column=5, columnspan=2)
+        if control_block.cached['grid']['is_set'] == 1:
+            self.grid_load_from_cache()
+        self.grid_window.wait_window()
 
     def grid_get_cols_rows(self, cols, rows): #1st phase of grid calibration - rows & cols
         self.grid_num_cols = cols
@@ -1020,30 +783,25 @@ class PlaybackPanel(Frame):
                                                  width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
         else: #not from cache - calculate prespective using genImageProjective class
             #first create a rectangle as it was straight
-            topLeft = (0,0)
-            topRight = (self.grid_num_cols, 0)
-            bottomRight = (self.grid_num_cols, self.grid_num_rows)
-            bottomLeft = (0, self.grid_num_rows)
-            width = topRight[0] - topLeft[0]
-            height = bottomLeft[1] - topLeft[1]
-            imageProjective = genImageProjective()
-            imageProjective.sourceArea[0] = topLeft
-            imageProjective.sourceArea[1] = topRight
-            imageProjective.sourceArea[2] = bottomRight
-            imageProjective.sourceArea[3] = bottomLeft
-            imageProjective.destArea[0] = self.grid_borders[0]
-            imageProjective.destArea[1] = self.grid_borders[1]
-            imageProjective.destArea[2] = self.grid_borders[2]
-            imageProjective.destArea[3] = self.grid_borders[3]
+            top_left = (0,0)
+            top_right = (self.grid_num_cols, 0)
+            buttom_right = (self.grid_num_cols, self.grid_num_rows)
+            buttom_left = (0, self.grid_num_rows)
+            width = top_right[0] - top_left[0]
+            height = buttom_left[1] - top_left[1]
+            source_area = [top_left, top_right, buttom_right, buttom_left]
+            dest_area = self.grid_borders
+            imageProjective = Grid.GenImageProjective(source_area, dest_area)
+
             #now calculate coeefficients for the right prespective
             if imageProjective.computeCoeefficients() != 0: #3 points on the same line, can't calculate
                 return
             #vertical lines
             for i in range(1, self.grid_num_cols):
                 pos = i * (1 / self.grid_num_rows)
-                tempPnt = (topLeft[0] + pos * height, topLeft[1])
+                tempPnt = (top_left[0] + pos * height, top_left[1])
                 upper_point = imageProjective.mapSourceToDestPoint(tempPnt)
-                tempPnt = (topLeft[0] + pos * height, bottomLeft[1])
+                tempPnt = (top_left[0] + pos * height, buttom_left[1])
                 lower_point = imageProjective.mapSourceToDestPoint(tempPnt)
                 self.grid_inner_lines.append(
                     self.canvas_grid.create_line(upper_point[0], upper_point[1], lower_point[0], lower_point[1],
@@ -1057,9 +815,9 @@ class PlaybackPanel(Frame):
             #horizontal lines
             for i in range(1, self.grid_num_rows):
                 pos = i * (1 / self.grid_num_cols)
-                tempPnt = (topLeft[0], topLeft[1] + pos * width)
+                tempPnt = (top_left[0], top_left[1] + pos * width)
                 left_point = imageProjective.mapSourceToDestPoint(tempPnt)
-                tempPnt = (topRight[0], topLeft[1] + pos * width)
+                tempPnt = (top_right[0], top_left[1] + pos * width)
                 right_point = imageProjective.mapSourceToDestPoint(tempPnt)
                 self.grid_inner_lines.append(
                     self.canvas_grid.create_line(left_point[0], left_point[1], right_point[0], right_point[1],
@@ -1081,12 +839,14 @@ class PlaybackPanel(Frame):
 
     def grid_finish(self): #4th phase of calibration - save to cache and hide the grid window
         self.grid_window.withdraw() #hides the grid window, but we can still work on it in the background
-        self.is_grid_set = True
+        control_block.cached['grid']['is_set'] = 1
+        # self.is_grid_set = True
+        
         self.parent.side_bar.upper_bar.calibrate_button.config(relief=SUNKEN)
         self.grid_dump_to_cache()
 
     def grid_reset(self, generalReset=False):
-        if (self.grid_window != None):
+        if not self.grid_window:
             self.grid_window.destroy()
         self.grid_window = None
         self.canvas_grid = None
@@ -1106,9 +866,10 @@ class PlaybackPanel(Frame):
         self.attr_file_path = None
         self.is_grid_set = False
         self.parent.side_bar.upper_bar.calibrate_button.config(relief=RAISED)
+        control_block.cached['grid']['is_set'] = 0
         self.grid_dump_to_cache(uncache=True)
-        if not generalReset: #generalReset = reset from outside of the grid windows, hence doesn't need to open set_grid again
-            self.on_set_grid()
+        # if not generalReset: #generalReset = reset from outside of the grid windows, hence doesn't need to open set_grid again
+            # self.on_set_grid()
 
     def grid_load_attributes(self, filename=None):
         if (filename == None): #user clicks the button and select by himself
@@ -1130,39 +891,33 @@ class PlaybackPanel(Frame):
         self.grid_window.focus_force()
 
     def grid_dump_to_cache(self, uncache=False):
-        if not os.path.isdir("gridcache"):
-            os.mkdir("gridcache")
-        cache_file = "gridcache/%s.json" %(self.filename)
         if not uncache:
-            inner_points_coords = list()
-            inner_lines_coords = list()
-            #get the coords of the inner lines and inner points and save the coords to cache
+            control_block.cached['grid']['value']['inner_points'] = []
             for point in self.grid_inner_points:
-                inner_points_coords.append(self.canvas_grid.coords(point))
+                control_block.cached['grid']['value']['inner_points'].append(self.canvas_grid.coords(point))
+            control_block.cached['grid']['value']['inner_lines'] = []
             for line in self.grid_inner_lines:
-                inner_lines_coords.append(self.canvas_grid.coords(line))
-            cached_json = {"valid": 1, "rows": self.grid_num_rows, "cols": self.grid_num_cols, "borders": self.grid_borders, "inner_lines": inner_lines_coords, "inner_points": inner_points_coords, "attr_path":self.attr_file_path}
+                control_block.cached['grid']['value']['inner_lines'].append(self.canvas_grid.coords(line))
+            control_block.cached['grid']['is_set'] = 1
+            control_block.cached['grid']['value']['rows'] = self.grid_num_rows
+            control_block.cached['grid']['value']['cols'] = self.grid_num_cols
+            control_block.cached['grid']['value']['borders'] = self.grid_borders
+            control_block.cached['grid']['value']['attr_path'] = self.attr_file_path
         else:
-            cached_json = {"valid": 0}
-        with open(str(cache_file), "w") as fp:
-            json.dump(cached_json, fp)
+            control_block.cached['grid']['is_set'] = 0
 
     def grid_load_from_cache(self):
-        cache_file = "gridcache/%s.json" % (self.filename)
-        cached_json = {}
-        with open(str(cache_file), "r") as fp:
-            cached_json = json.load(fp)
-        if (cached_json['valid'] == 0): #not valid
+        if control_block.cached['grid']['is_set'] == 0:
             return
-        else: #cached grid is valid
-            self.grid_borders = cached_json['borders']
-            self.grid_points = [None, None, None, None]
-            self.grid_lines = [None, None, None, None]
-            self.grid_get_cols_rows(cached_json['cols'], cached_json['rows'])
-            self.grid_create_outer(None, eventExist=False)
-            self.grid_create_inner(first_use=True, modify=True, from_cache=True, json_lines=cached_json['inner_lines'], json_points=cached_json['inner_points'])
-            self.grid_load_attributes(filename=cached_json['attr_path'])
-            return
+
+        self.grid_borders = control_block.cached['grid']['value']['borders']
+        self.grid_points = [None, None, None, None]
+        self.grid_lines = [None, None, None, None]
+        self.grid_get_cols_rows(control_block.cached['grid']['value']['cols'], control_block.cached['grid']['value']['rows'])
+        self.grid_create_outer(None, eventExist=False)
+        self.grid_create_inner(first_use=True, modify=True, from_cache=True, json_lines=control_block.cached['grid']['value']['inner_lines'], json_points=control_block.cached['grid']['value']['inner_points'])
+        if control_block.cached['grid']['value']['attr_path']:
+            self.grid_load_attributes(filename=control_block.cached['grid']['value']['attr_path'])
 
     # -----Auxiliary functions for grid Stuff -----
 
@@ -1359,8 +1114,233 @@ class PlaybackPanel(Frame):
         self.grabbed_obj = None
 
 
+class PlaybackPanel(Frame):
 
+    def __init__(self, parent, *args, **kwargs):
+        Frame.__init__(self, parent, *args, **kwargs)
+        self.parent = parent
+        self.vlc_instance = vlc.Instance() # self.vlc_instance = vlc.Instance('--no-ts-trust-pcr','--ts-seek-percent')
+        self.player = self.vlc_instance.media_player_new()
+        self.filename = None
+        self.player.set_hwnd(self.winfo_id())
+        self.player.video_set_mouse_input(False)
+        self.player.video_set_key_input(False)
+        self.bind('<Button-1>', self.on_click)
+        self.bind('<ButtonRelease-1>', self.on_click_released)
+        self.parent.side_bar.upper_bar.calibrate_button.config(command=self.parent.on_grid_set_button_click)
+        self.events = self.player.event_manager()
+        self.events.event_attach(vlc.EventType.MediaPlayerEndReached, self.EventManager)
 
+    def EventManager(self, event):
+        if event.type == vlc.EventType.MediaPlayerEndReached:
+            self.parent.control_bar.on_media_reached_end()
+
+    def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
+        video_size_x, video_size_y = window_x, window_y
+        
+        if window_x / video_res_x > window_y / video_res_y:
+            video_size_x = window_y * video_res_x / video_res_y
+        else:
+            video_size_y = window_x * video_res_y / video_res_x
+
+        rel_click_x = (click_x - (abs(window_x - video_size_x) / 2)) / video_size_x
+        rel_click_y = (click_y - (abs(window_y - video_size_y) / 2)) / video_size_y
+
+        if rel_click_x < 0 or rel_click_x > 1:
+            rel_click_x = -1
+        if rel_click_y < 0 or rel_click_y > 1:
+            rel_click_y = -1
+
+        return rel_click_x, rel_click_y
+
+    def on_click_released(self, event):
+        self.config(cursor='')
+        
+    def on_click(self, event=None):
+        if not self.parent.side_bar.is_clock_set():
+            return
+        if not self.parent.side_bar.is_location_set():
+            return
+        if not self.parent.side_bar.is_grid_set():
+            return
+        if self.player.get_time() < 0:
+            return
+        
+        identities = ", ".join(self.parent.side_bar.identity.get_selected_items())
+        events = ", ".join(self.parent.side_bar.events.get_selected_items())
+        if len(events) == 0:
+            return
+
+        if event and event.type == EventType.ButtonPress:
+            relative_click = self.get_relative_location(event.x, event.y, self.winfo_width(), self.winfo_height(), self.winfo_screenwidth(), self.winfo_screenheight())
+            if relative_click[0] == -1 or relative_click[1] == -1:
+                return
+            cell = self.parent.grid.find_grid_cell(relative_click)
+            if cell == (-1, -1):
+                return
+            attribute_on_cell = "None" if (len(self.parent.grid.grid_attributes) == 0 or self.parent.grid.grid_attributes[cell[0]] == None or self.parent.grid.grid_attributes[cell[0]][cell[1]] == None) else self.parent.grid.grid_attributes[cell[1]][cell[0]]
+            self.config(cursor='gobbler')
+        else:
+            cell = (-1, -1)
+            attribute_on_cell = 'None'
+
+        session_timestamp = self.player.get_time()-control_block.cached['session_timestamp']['value']
+        self.parent.add_item(self.player.get_time(),session_timestamp,identities,events,self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
+
+    def on_media_reached_end(self):
+        self.player.set_time(0)
+
+    def on_pause(self):
+        self.player.pause()
+        self.parent.control_bar.on_pause()
+
+    def on_stop(self):
+        self.player.stop()
+        self.player.set_media(None)
+        self.parent.control_bar.time_slider.set(0)
+        self.parent.dump_events_to_file()
+        control_block.dump_cache()
+        if self.parent.event_manager:
+            self.parent.event_manager.on_media_stop()
+        self.parent.control_bar.on_stop()
+        self.parent.side_bar.on_stop()
+
+    def on_play_pause(self, event=None):
+        if self.player.get_state() == vlc.State.Paused:
+            self.on_play()
+        elif self.player.get_state() == vlc.State.Playing:
+            self.on_pause()
+
+    def on_play(self):
+        if not self.player.get_media():
+            self.on_open()
+        else:
+            if self.player.get_state() == vlc.State.Ended:
+               self.player.set_media(self.media)
+            self.parent.control_bar.on_play()
+            self.parent.side_bar.on_play()
+
+    def on_open(self):
+        self.on_stop()
+        p = pathlib.Path(os.path.expanduser(configuration.config['last_path']))
+        fullname = askopenfilename(initialdir = p, title = "Select media",filetypes = (("All Files","*.*"),("MP4 Video","*.mp4"),("AVCHD Video","*.mts")))
+        if os.path.isfile(fullname):
+            dirname = os.path.dirname(fullname)
+            filename = os.path.basename(fullname)
+            self.filename = filename
+            configuration.config['last_path'] = dirname
+            self.media = self.vlc_instance.media_new(str(os.path.join(dirname, filename)))
+            self.player.set_media(self.media)
+            control_block.current_media_hash = md5(fullname)
+            control_block.load_cache()
+            control_block.cached['media_name'] = filename
+            if self.parent.event_manager:
+                self.parent.event_manager.on_media_open()
+
+            self.player.play()
+            self.parent.control_bar.on_play()
+            self.parent.side_bar.on_play()
+            self.player.set_rate(configuration.config['speed'])
+            
+    def OnTimer(self):
+        if self.player == None or self.player.get_time() == -1:
+            return
+
+        self.parent.control_bar.time_slider.config(command=self.scale_sel_without_media_update, to=self.player.get_length())
+        self.parent.control_bar.time_slider.set(self.player.get_time())
+        self.parent.control_bar.time_slider.config(command=self.scale_sel)
+
+    def on_next_frame(self, event=None):
+        self.player.next_frame()
+
+    def set_speed(self,speed):
+        self.player.set_rate(speed)
+
+    def on_speed_up(self):
+        if self.player.get_rate() == 0.25:
+            self.player.set_rate(0.3)
+        elif self.player.get_rate() + 0.1 > 2.0:
+            self.player.set_rate(2.0)
+        else:
+            self.player.set_rate(self.player.get_rate() + 0.1)
+        self.set_text_on_screen("Speed: {:0>.2f}".format(self.player.get_rate()))
+        configuration.config['speed'] = self.player.get_rate()
+
+    def on_speed_down(self):
+        if self.player.get_rate() - 0.1 < 0.25:
+            self.player.set_rate(0.25)
+        else:
+            self.player.set_rate(self.player.get_rate() - 0.1)
+        self.set_text_on_screen("Speed: {:0>.2f}".format(self.player.get_rate()))
+        configuration.config['speed'] = self.player.get_rate()
+
+    def on_speed_change(self, event):
+        if event.delta < 0:
+            self.on_speed_down()
+        else:
+            self.on_speed_up()
+
+    def on_zoom_in(self):
+        if (self.player.video_get_scale() == 0.0):
+            self.player.video_set_scale(1)
+        elif (self.player.video_get_scale() + 0.1 > 2):
+            self.player.video_set_scale(2)
+        else:
+            self.player.video_set_scale(self.player.video_get_scale() + 0.1)
+
+    def on_zoom_out(self):
+        if self.player.video_get_scale() - 0.1 < 1:
+            self.player.video_set_scale(0)
+        else:
+            self.player.video_set_scale(self.player.video_get_scale() - 0.1)
+
+    def on_full_screen(self):
+        if not self.parent.parent.attributes("-fullscreen"):
+            self.parent.parent.attributes('-fullscreen', True)
+        else:
+            self.parent.parent.attributes('-fullscreen', False)
+
+    def scale_sel_without_media_update(self, evt):
+        milliseconds = self.parent.control_bar.scale_var.get()
+        if not (milliseconds <= self.player.get_length() and milliseconds >= 0):
+            return 0
+        self.parent.control_bar.update_time_label(milliseconds/1000)
+        return milliseconds
+
+    def scale_sel(self, event):
+        milliseconds = self.scale_sel_without_media_update(event)
+        self.player.set_time(int(milliseconds))
+
+    def on_volume_change(self, evt):
+        if self.player == None:
+            return
+        volume = self.parent.control_bar.volume_var.get()
+        if volume > 100:
+            volume = 100
+        self.player.audio_set_volume(volume)
+        self.parent.status_bar.status_label.config(text="Volume: " + str(self.parent.control_bar.volslider.get()) + '%')
+    
+    def set_text_on_screen(self, text):
+        self.player.video_set_marquee_int(0, 1)
+        self.player.video_set_marquee_int(6, 48)
+        self.player.video_set_marquee_int(7, 200)
+        self.player.video_set_marquee_string(1, text)
+        self.player.video_get_marquee_string(1)
+
+    def is_media_loaded(self):
+        return self.player.get_media()
+
+    def get_media_length(self):
+        return self.player.get_length()
+
+    def get_current_timestamp(self):
+        return self.player.get_time()
+
+    def goto_timestamp(self, timestamp):
+        self.parent.playback_panel.player.set_time(timestamp)
+
+    def get_video_name(self):
+        return self.player.get_title()
 
 class SideBar(Frame):
     class UpperBar(Frame):
@@ -1455,6 +1435,9 @@ class SideBar(Frame):
     def is_location_set(self):
         return control_block.cached['export_location']['is_set'] == 1
 
+    def is_grid_set(self):
+        return control_block.cached['grid']['is_set'] == 1
+
 class MenuBar(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
@@ -1468,7 +1451,7 @@ class MenuBar(Frame):
         self.menu.add_cascade(label="File", menu=file_menu)
 
         session_menu = Menu(self.menu, tearoff=0)
-        session_menu.add_command(label="Reset grid")
+        session_menu.add_command(label="Reset grid",command=self.parent.grid.grid_reset)
         session_menu.add_command(label="Reset clock")
         session_menu.add_command(label="Reset CSV")
         session_menu.insert_separator(3)
@@ -1547,6 +1530,7 @@ class MainApplication(Frame):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         self.event_manager = None
+        self.grid = Grid(self)
         self.parent.protocol("WM_DELETE_WINDOW", self.on_exit)
         self.temp =0
 
@@ -1619,6 +1603,9 @@ class MainApplication(Frame):
             self.event_manager = EventManager(self, takefocus=True)
         else:
             self.event_manager.on_closing()
+
+    def on_grid_set_button_click(self):
+        self.grid.set_grid()
 
     def on_open_event_manager_menu_click(self, event=None):
         if not self.event_manager:
