@@ -196,55 +196,64 @@ class genImageProjective:
 
 
 class ControlBlock:
-    events = []
-    current_media_hash= ''
-    cached = {}
-    default_cache = {'total_number_of_events': 0,
-                     'session_timestamp': {'is_set': 0, 'value': 0},
-                     'export_location': {'is_set': 0, 'value': ''},
-                     'media_name': '',
-                     'timestamp_type': 'global'}
+    def __init__(self):
+        self.cache_file = pathlib.Path('cache.json')
+        self.events = []
+        self.current_media_hash= ''
+        self.cached = {}
+        self.cached = self.default_cache = {'total_number_of_events': 0,
+                                            'session_timestamp': {'is_set': 0, 'value': 0},
+                                            'export_location': {'is_set': 0, 'value': ''},
+                                            'media_name': '',
+                                            'timestamp_type': 'global'}
 
     def dump_cache(self):
-        if control_block.current_media_hash != '':
+        if self.current_media_hash != '':
             cached_json = {}
-            if configuration.cache_file.is_file():
-                with open(configuration.cache_file, 'r') as fp:
+            if self.cache_file.is_file():
+                with open(self.cache_file, 'r') as fp:
                     cached_json = json.load(fp)
 
-            cached_json[control_block.current_media_hash] = control_block.cached
+            cached_json[self.current_media_hash] = self.cached
 
-            with open(configuration.cache_file, 'w') as fp:
+            with open(self.cache_file, 'w') as fp:
                 json.dump(cached_json, fp)
 
-            control_block.current_media_hash = ''
+            self.current_media_hash = ''
 
-        control_block.cached = control_block.default_cache
+        self.cached = self.default_cache
 
     def load_cache(self):
-        if configuration.cache_file.is_file():
-            with open(configuration.cache_file, 'r') as fp:
+        if self.cache_file.is_file():
+            with open(self.cache_file, 'r') as fp:
                 cached_json = json.load(fp)
-                if control_block.current_media_hash in cached_json:
-                    control_block.cached = cached_json[control_block.current_media_hash]
+                if self.current_media_hash in cached_json:
+                    self.cached = cached_json[self.current_media_hash]
 
 class Configuration:
-    config_file = pathlib.Path('config.json')
-    cache_file = pathlib.Path('cache.json')
-    config = {'last_export_path':'%USERPROFILE%',
-              'last_path':'%USERPROFILE%',
-              'identity_list': [],
-              'event_list': [],
-              'speed': 1,
-              'event_manager': {'size_x': 300,
-                                'size_y': 300,
-                                'pos_x': 300,
-                                'pos_y': 300,
-                                'number_of_events': 10},
-              'main_application': {'size_x': 300,
-                                   'size_y': 300,
-                                   'pos_x': 300,
-                                   'pos_y': 300}}
+
+    def __init__(self):
+        self.config_file = pathlib.Path('config.json')
+
+        if self.config_file.is_file():
+            with open(self.config_file, 'r') as fp:
+                self.config = json.load(fp)
+        else:    
+            self.config = {'last_export_path':'%USERPROFILE%',
+                            'last_path':'%USERPROFILE%',
+                            'identity_list': [],
+                            'event_list': [],
+                            'speed': 1,
+                            'event_manager': {'size_x': 300,
+                                                'size_y': 300,
+                                                'pos_x': 300,
+                                                'pos_y': 300,
+                                                'number_of_events': 10},
+                            'main_application': {'size_x': 300,
+                                                'size_y': 300,
+                                                'pos_x': 300,
+                                                'pos_y': 300}}
+
 
 def md5(fname):
     hash_md5 = hashlib.md5()
@@ -498,21 +507,14 @@ class ControlBar(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-
-        #variables
         self.volume_var = IntVar()
-        self.scale_var = DoubleVar() #time of the video scale var
-        self.timeslider_last_val = 0.0
+        self.scale_var = DoubleVar()
         self.timer = ttkTimer(self.parent.playback_panel.OnTimer, 0.001)
-
-        #buttons and other widgets
         self.pause_icon = PhotoImage(file='./media/pause.png')
         self.play_icon = PhotoImage(file='./media/play.png')
         self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.on_play)
         self.stop_icon = PhotoImage(file='./media/stop.png')
         self.stop = Button(self, image=self.stop_icon, command=self.parent.playback_panel.on_stop)
-        # self.previous_frame_icon = PhotoImage(file='./media/previous_frame.png')
-        # self.previous_frame = Button(self, image=self.previous_frame_icon, state=DISABLED)
         self.next_frame_icon = PhotoImage(file='./media/next_frame.png')
         self.next_frame = Button(self, image=self.next_frame_icon, command=self.parent.playback_panel.on_next_frame)
         self.speedup_icon = PhotoImage(file='./media/speed_up.png')
@@ -523,44 +525,60 @@ class ControlBar(Frame):
         self.zoomin = Button(self, image=self.zoom_in_icon, command=self.parent.playback_panel.on_zoom_in)
         self.zoom_out_icon = PhotoImage(file='./media/zoom_out.png')
         self.zoomout = Button(self, image=self.zoom_out_icon, command=self.parent.playback_panel.on_zoom_out)
-        self.int_forward_icon = PhotoImage(file='./media/int_forward.png')
-        self.iforward = Button(self, image=self.int_forward_icon, state=DISABLED)
-        self.int_backward_icon = PhotoImage(file='./media/int_backward.png')
-        self.ibackword = Button(self, image=self.int_backward_icon, state=DISABLED)
+        self.jump_forward_icon = PhotoImage(file='./media/int_forward.png')
+        self.jump_forward = Button(self, image=self.jump_forward_icon, command=self.on_jump_backward)
+        self.jump_backward_icon = PhotoImage(file='./media/int_backward.png')
+        self.jump_backword = Button(self, image=self.jump_backward_icon, command=self.on_jump_forward)
         self.fullscreen_icon = PhotoImage(file='./media/fullscreen.png')
         self.fullsc = Button(self, image=self.fullscreen_icon, command=self.parent.playback_panel.on_full_screen)
         self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
-        self.timeScaleFrame = Frame(self)
+        self.time_frame = Frame(self)
         self.time_label_balloon = Balloon(self)
-        self.timeslider = Scale(self.timeScaleFrame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel_without_media_update,
-                                   from_=0,orient=HORIZONTAL, resolution=-1, showvalue=0)
-        self.currentTimeLabel = Label(self.timeScaleFrame, text="00:00:00.000", width=9)
-        self.currentTimeLabel.pack(side=RIGHT)
-        self.currentTimeLabel.bind('<Button-1>', self.on_time_label_click)
-        self.time_label_balloon.bind(self.currentTimeLabel, '{}'.format(control_block.cached['timestamp_type']))
-        self.timeslider.pack(side=RIGHT, fill=X, expand=1)
-
-        self.timeScaleFrame.pack(side=TOP, fill=X, expand=1)
+        self.time_slider = Scale(self.time_frame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel_without_media_update, from_=0,orient=HORIZONTAL, resolution=-1, showvalue=0)
+        self.time_label = Label(self.time_frame, text="00:00:00.000", width=9)
+        self.time_label.pack(side=RIGHT)
+        self.time_label.bind('<Button-1>', self.on_time_label_click)
+        self.time_label_balloon.bind(self.time_label, '{}'.format(control_block.cached['timestamp_type']))
+        self.time_slider.pack(side=RIGHT, fill=X, expand=1)
+        self.time_frame.pack(side=TOP, fill=X, expand=1)
         self.play.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.stop.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.speedup.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.speeddown.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        # self.previous_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.next_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.zoomin.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.zoomout.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        self.ibackword.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        self.iforward.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.jump_backword.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.jump_forward.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.fullsc.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.volslider.pack(side=LEFT, expand=TRUE, anchor=E, padx=1, pady=3)
-
         self.timer.start()
         self.parent.parent.update()
+
+    def on_jump_backward(self, event=None):
+        if not self.parent.playback_panel.is_media_loaded():
+            return
+            
+        new_timestamp = self.parent.playback_panel.player.get_time() + 400
+        if new_timestamp > self.parent.playback_panel.get_media_length():
+            new_timestamp = self.parent.playback_panel.get_media_length()
+        
+        self.parent.playback_panel.player.set_time(new_timestamp)
+
+    def on_jump_forward(self, event=None):
+        if not self.parent.playback_panel.is_media_loaded():
+            return
+            
+        new_timestamp = self.parent.playback_panel.player.get_time() - 400
+        if new_timestamp < 0:
+            new_timestamp = 0
+        
+        self.parent.playback_panel.player.set_time(new_timestamp)
 
     def on_mouse_wheel(self, event):
         if not self.parent.playback_panel.is_media_loaded():
@@ -573,16 +591,10 @@ class ControlBar(Frame):
             was_playing = False
         
         if event.delta > 0:
-            new_timestamp = self.parent.playback_panel.player.get_time() - 400
+            self.on_jump_forward()
         else:
-            new_timestamp = self.parent.playback_panel.player.get_time() + 400
-        
-        if new_timestamp < 0:
-            new_timestamp = 0
-        elif new_timestamp > self.parent.playback_panel.get_media_length():
-            new_timestamp = self.parent.playback_panel.get_media_length()
-        
-        self.parent.playback_panel.player.set_time(new_timestamp)
+            self.on_jump_backward()
+
         if was_playing:
             self.parent.playback_panel.player.play()
 
@@ -598,7 +610,7 @@ class ControlBar(Frame):
             control_block.cached['timestamp_type'] = 'global'
 
         self.update_time_label(self.parent.playback_panel.get_current_timestamp()/1000)
-        self.time_label_balloon.bind(self.currentTimeLabel, '{} timestamp'.format(control_block.cached['timestamp_type']))
+        self.time_label_balloon.bind(self.time_label, '{} timestamp'.format(control_block.cached['timestamp_type']))
 
     def on_play(self):
         self.play.configure(image=self.pause_icon, command=self.parent.playback_panel.on_pause)
@@ -607,10 +619,10 @@ class ControlBar(Frame):
         self.play.configure(image=self.play_icon, command=self.parent.playback_panel.on_play)
 
     def on_media_reached_end(self):
-        # self.timeslider.set(0)
+        # self.time_slider.set(0)
         self.on_pause()
         # self.parent.playback_panel.on_media_reached_end()
-        # self.timeslider.set(0)
+        # self.time_slider.set(0)
 
     def on_stop(self):
         self.on_pause()
@@ -622,7 +634,7 @@ class ControlBar(Frame):
             time_label_text = self.parent.translate_timestamp_to_clock(seconds - control_block.cached['session_timestamp']['value']/1000)
         elif control_block.cached['timestamp_type'] == 'total':
             time_label_text = self.parent.translate_timestamp_to_clock(self.parent.playback_panel.get_media_length()/1000)
-        self.currentTimeLabel.config(text=time_label_text)
+        self.time_label.config(text=time_label_text)
 
 class Description(Frame):
 
@@ -765,7 +777,7 @@ class PlaybackPanel(Frame):
     def on_stop(self):
         self.player.stop()
         self.player.set_media(None)
-        self.parent.control_bar.timeslider.set(0)
+        self.parent.control_bar.time_slider.set(0)
         self.parent.dump_events_to_file()
         control_block.dump_cache()
         if self.parent.event_manager:
@@ -813,19 +825,19 @@ class PlaybackPanel(Frame):
             self.parent.control_bar.on_play()
             self.parent.side_bar.on_play()
             self.player.set_rate(configuration.config['speed'])
-
+            
     def OnTimer(self):
         if self.player == None or self.player.get_time() == -1:
             return
 
-        self.parent.control_bar.timeslider.config(command=self.scale_sel_without_media_update, to=self.player.get_length())
+        self.parent.control_bar.time_slider.config(command=self.scale_sel_without_media_update, to=self.player.get_length())
         # milliseconds = self.player.get_time()
         # if self.player.get_time() == -1:
         #     return
         # dbl = milliseconds #* 0.001
         # self.parent.control_bar.timeslider_last_val = dbl
-        self.parent.control_bar.timeslider.set(self.player.get_time())
-        self.parent.control_bar.timeslider.config(command=self.scale_sel)
+        self.parent.control_bar.time_slider.set(self.player.get_time())
+        self.parent.control_bar.time_slider.config(command=self.scale_sel)
 
     def on_next_frame(self, event=None):
         self.player.next_frame()
@@ -1548,18 +1560,16 @@ class MainApplication(Frame):
                 self.status_label.config(text="Speed Up")
             elif event.widget == self.parent.control_bar.speeddown:
                 self.status_label.config(text="Speed Down")
-            # elif event.widget == self.parent.control_bar.previous_frame:
-                # self.status_label.config(text="Previous Frame")
             elif event.widget == self.parent.control_bar.next_frame:
                 self.status_label.config(text="Next Frame")
             elif event.widget == self.parent.control_bar.zoomin:
                 self.status_label.config(text="Zoom In")
             elif event.widget == self.parent.control_bar.zoomout:
                 self.status_label.config(text="Zoom Out")
-            elif event.widget == self.parent.control_bar.iforward:
-                self.status_label.config(text="Intelligent Fast Forward")
-            elif event.widget == self.parent.control_bar.ibackword:
-                self.status_label.config(text="Intelligent Fast Backward")
+            elif event.widget == self.parent.control_bar.jump_forward:
+                self.status_label.config(text="Jump Forward")
+            elif event.widget == self.parent.control_bar.jump_backword:
+                self.status_label.config(text="Jump Backward")
             elif event.widget == self.parent.control_bar.fullsc:
                 self.status_label.config(text="Full Screen")
             elif event.widget == self.parent.control_bar.volslider:
@@ -1602,7 +1612,7 @@ class MainApplication(Frame):
         self.bind_all('<Enter>', self.status_bar.DisplayOnLabel)
 
     def JumpToTime(self, d_time):
-        self.control_bar.timeslider.set(d_time)
+        self.control_bar.time_slider.set(d_time)
 
     def translate_timestamp_to_clock(self, seconds):
         if seconds < 0:
@@ -1633,8 +1643,6 @@ class MainApplication(Frame):
         if len(control_block.events) >= configuration.config['event_manager']['number_of_events']:
             old_record = control_block.events.pop(0)
             self.write_record_to_csv(old_record)
-            # with open(control_block.cached['export_location']['value'], "a", encoding='utf-8') as events_file:
-            #     csv.writer(events_file, delimiter=',').writerow(self.translate_to_friendly_record(old_record))
             if self.event_manager:
                 self.event_manager.refresh_events()
 
@@ -1665,9 +1673,6 @@ class MainApplication(Frame):
         self.playback_panel.set_text_on_screen('Undo last event')
         if self.event_manager:
             self.event_manager.refresh_events()
-
-    def on_export_events(self):
-        raise Exception()
 
     def on_exit(self):
         configuration.config['main_application']['size_x'] = self.winfo_width()
@@ -1705,35 +1710,20 @@ class MainApplication(Frame):
         self.bind_all("<Control-Key>", self.side_bar.events.on_mark_event)
         self.bind_all("<Shift-Key>", self.side_bar.identity.on_mark_event)
         self.playback_panel.bind("<MouseWheel>", self.playback_panel.on_speed_change)
-        self.control_bar.timeslider.bind("<MouseWheel>", self.control_bar.on_mouse_wheel)
+        self.control_bar.time_slider.bind("<MouseWheel>", self.control_bar.on_mouse_wheel)
         self.bind_all("<space>", self.playback_panel.on_play_pause)
         self.bind_all("<Control-Key-e>", self.playback_panel.on_click)
         self.bind_all("<Control-Key-m>", self.on_open_event_manager_menu_click)
         self.bind_all("<Control-Key-r>", self.on_reset)
         self.bind_all("<Right>", self.playback_panel.on_next_frame)
 
-def callback(event):
-    print(event.char)
-    print(event.keysym)
-    print(event.keycode)
-    print(event.type)
-    print('asdasd')
-
 if __name__ == "__main__":
     root = Tk()
     root.minsize(width=988, height=551)
     root.title("Poke-A-Bird")
     root.iconbitmap('./media/bird.ico')
-    #root.attributes('-fullscreen', True) #force fullscreen
-    #root.state('zoomed') #force zoom
     configuration = Configuration()
     control_block = ControlBlock()
-
-    if configuration.config_file.is_file():
-        with open(configuration.config_file, 'r') as fp:
-            configuration.config = json.load(fp)
-    control_block.cached = control_block.default_cache
-
     mainapp = MainApplication(root)
     mainapp.pack(side="top", fill="both", expand=True)
     root.mainloop()
