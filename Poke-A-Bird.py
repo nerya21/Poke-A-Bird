@@ -44,10 +44,6 @@ from Pmw import Balloon
 
 __version__ = '0.3'
 
-GRID_POINT_WIDTH = 10
-GRID_LINE_WIDTH = 5
-# -------------------------------------------
-
 #genImageProjective class is used for getting the right prespective of the grid
 class genImageProjective:
     def __init__(self):
@@ -244,15 +240,10 @@ class Configuration:
                             'identity_list': [],
                             'event_list': [],
                             'speed': 1,
-                            'event_manager': {'size_x': 300,
-                                                'size_y': 300,
-                                                'pos_x': 300,
-                                                'pos_y': 300,
-                                                'number_of_events': 10},
-                            'main_application': {'size_x': 300,
-                                                'size_y': 300,
-                                                'pos_x': 300,
-                                                'pos_y': 300}}
+                            'grid_point_size': 10,
+                            'grid_line_size': 5,
+                            'event_manager': {'size_x': 300, 'size_y': 300, 'pos_x': 300, 'pos_y': 300, 'number_of_events': 10},
+                            'main_application': {'size_x': 300, 'size_y': 300, 'pos_x': 300, 'pos_y': 300}}
 
 
 def md5(fname):
@@ -268,13 +259,10 @@ class EventManager(Toplevel):
         def __init__(self, parent, *args, **kwargs):
             Frame.__init__(self, parent, *args, **kwargs)
             self.parent = parent
-
             self.listbox = ttk.Treeview(self, height=1)
             self.y_scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.listbox.yview)
-            # self.x_scrollbar = ttk.Scrollbar(self, orient="horizontal", command=self.listbox.xview)
             self.listbox.bind('<Double-1>', self.parent.on_click)
             self.listbox.bind('<Delete>', self.parent.delete_selected_item)
-
             self.listbox["columns"]=('video_timestamp', 'session_timestamp', 'identities','events','description' , 'pos_x', 'pos_y', 'attribute')
             self.listbox['show'] = 'headings'
             self.listbox.column("video_timestamp", minwidth=110, width=110, anchor='w')
@@ -293,11 +281,8 @@ class EventManager(Toplevel):
             self.listbox.heading("pos_x", text='Column', anchor='w')
             self.listbox.heading("pos_y", text='Row', anchor='w')
             self.listbox.heading("attribute", text='Attribute', anchor='w')
-
             self.y_scrollbar.pack(side=RIGHT, fill=Y)
-            # self.x_scrollbar.pack(side=BOTTOM, fill=X)
             self.listbox.pack(side=LEFT, fill = BOTH, expand=TRUE)
-
             self.refresh_events()
 
         def refresh_events(self):
@@ -369,7 +354,6 @@ class EventManager(Toplevel):
         configuration.config['event_manager']['size_y'] = self.winfo_height()
         configuration.config['event_manager']['pos_x'] = self.winfo_x()
         configuration.config['event_manager']['pos_y'] = self.winfo_y()
-        # self.parent.side_bar.upper_bar.eventManagerButton.config(relief=RAISED)
         self.bind_all('<Enter>', self.parent.status_bar.DisplayOnLabel)
         self.destroy()
         self.parent.event_manager = None
@@ -619,10 +603,7 @@ class ControlBar(Frame):
         self.play.configure(image=self.play_icon, command=self.parent.playback_panel.on_play)
 
     def on_media_reached_end(self):
-        # self.time_slider.set(0)
         self.on_pause()
-        # self.parent.playback_panel.on_media_reached_end()
-        # self.time_slider.set(0)
 
     def on_stop(self):
         self.on_pause()
@@ -797,10 +778,6 @@ class PlaybackPanel(Frame):
         else:
             if self.player.get_state() == vlc.State.Ended:
                self.player.set_media(self.media)
-            if self.player.play() == -1:
-                self.error_dialog("Unable to play.")
-
-            #    self.player.play()
             self.parent.control_bar.on_play()
             self.parent.side_bar.on_play()
 
@@ -831,17 +808,11 @@ class PlaybackPanel(Frame):
             return
 
         self.parent.control_bar.time_slider.config(command=self.scale_sel_without_media_update, to=self.player.get_length())
-        # milliseconds = self.player.get_time()
-        # if self.player.get_time() == -1:
-        #     return
-        # dbl = milliseconds #* 0.001
-        # self.parent.control_bar.timeslider_last_val = dbl
         self.parent.control_bar.time_slider.set(self.player.get_time())
         self.parent.control_bar.time_slider.config(command=self.scale_sel)
 
     def on_next_frame(self, event=None):
         self.player.next_frame()
-        # self.player.set_time(self.player.get_time() + 100)
 
     def set_speed(self,speed):
         self.player.set_rate(speed)
@@ -907,12 +878,8 @@ class PlaybackPanel(Frame):
         volume = self.parent.control_bar.volume_var.get()
         if volume > 100:
             volume = 100
-        if self.player.audio_set_volume(volume) == -1:
-            self.error_dialog("Failed to set volume")
+        self.player.audio_set_volume(volume)
         self.parent.status_bar.status_label.config(text="Volume: " + str(self.parent.control_bar.volslider.get()) + '%')
-
-    def error_dialog(self, errormessage):
-        print(errormessage)
     
     def set_text_on_screen(self, text):
         self.player.video_set_marquee_int(0, 1)
@@ -931,13 +898,7 @@ class PlaybackPanel(Frame):
         return self.player.get_time()
 
     def goto_timestamp(self, timestamp):
-        # self.parent.playback_panel.on_pause()
-        # self.parent.playback_panel.player.set_time(timestamp)
-        self.parent.playback_panel.player.play()
         self.parent.playback_panel.player.set_time(timestamp)
-        time.sleep(0.5)
-
-        self.parent.playback_panel.player.pause()
 
     def get_video_name(self):
         return self.player.get_title()
@@ -950,7 +911,6 @@ class PlaybackPanel(Frame):
         else:
             if self.player.get_state() == vlc.State.Playing:
                 self.on_pause()
-                time.sleep(2)
             if self.grid_window == None:
                 self.parent.side_bar.upper_bar.calibrate_button.config(relief=RAISED)
                 self.is_grid_set = False
@@ -1010,11 +970,11 @@ class PlaybackPanel(Frame):
             Button(self.grid_window, text="OK", height=4, width=10,
                    command=lambda: self.grid_create_inner(first_use=True)).grid(row=1, column=5, columnspan=2)
             for i in range(4): #draw lines
-                self.grid_lines[i] = self.canvas_grid.create_line(self.grid_borders[i][0], self.grid_borders[i][1], self.grid_borders[(i+1)%4][0], self.grid_borders[(i+1)%4][1], fill="blue", width=GRID_LINE_WIDTH, tags="line")
+                self.grid_lines[i] = self.canvas_grid.create_line(self.grid_borders[i][0], self.grid_borders[i][1], self.grid_borders[(i+1)%4][0], self.grid_borders[(i+1)%4][1], fill="blue", width=configuration.config['grid_line_size'], tags="line")
                 self.canvas_grid.tag_bind(self.grid_lines[i], "<ButtonPress-1>", self.on_start_grab)
                 self.canvas_grid.tag_bind(self.grid_lines[i], "<ButtonRelease-1>", self.on_drop_grab)
             for i in range(4): #draw points
-                self.grid_points[i] = self.canvas_grid.create_oval(self.grid_borders[i][0], self.grid_borders[i][1], self.grid_borders[i][0], self.grid_borders[i][1], width=GRID_POINT_WIDTH, fill='white', outline='white', tags="point")
+                self.grid_points[i] = self.canvas_grid.create_oval(self.grid_borders[i][0], self.grid_borders[i][1], self.grid_borders[i][0], self.grid_borders[i][1], width=configuration.config['grid_point_size'], fill='white', outline='white', tags="point")
                 self.canvas_grid.tag_bind(self.grid_points[i], "<ButtonPress-1>", self.on_start_grab)
                 self.canvas_grid.tag_bind(self.grid_points[i], "<ButtonRelease-1>", self.on_drop_grab)
         else: #canvas clicks after this calibration
@@ -1053,11 +1013,11 @@ class PlaybackPanel(Frame):
             for json_line in json_lines:
                 self.grid_inner_lines.append(
                     self.canvas_grid.create_line(json_line[0], json_line[1], json_line[2], json_line[3],
-                                                 fill="red", width=GRID_LINE_WIDTH, tags="inner_line"))
+                                                 fill="red", width=configuration.config['grid_line_size'], tags="inner_line"))
             for json_point in json_points:
                 self.grid_inner_points.append(
                     self.canvas_grid.create_oval(json_point[0], json_point[1], json_point[0], json_point[1],
-                                                 width=GRID_POINT_WIDTH, fill='white', tags="inner_point"))
+                                                 width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
         else: #not from cache - calculate prespective using genImageProjective class
             #first create a rectangle as it was straight
             topLeft = (0,0)
@@ -1087,13 +1047,13 @@ class PlaybackPanel(Frame):
                 lower_point = imageProjective.mapSourceToDestPoint(tempPnt)
                 self.grid_inner_lines.append(
                     self.canvas_grid.create_line(upper_point[0], upper_point[1], lower_point[0], lower_point[1],
-                                                 fill="red", width=GRID_LINE_WIDTH, tags="inner_line"))
+                                                 fill="red", width=configuration.config['grid_line_size'], tags="inner_line"))
                 self.grid_inner_points.append(
                     self.canvas_grid.create_oval(upper_point[0], upper_point[1], upper_point[0], upper_point[1],
-                                                 width=GRID_POINT_WIDTH, fill='white', tags="inner_point"))
+                                                 width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
                 self.grid_inner_points.append(
                     self.canvas_grid.create_oval(lower_point[0], lower_point[1], lower_point[0], lower_point[1],
-                                                 width=GRID_POINT_WIDTH, fill='white', tags="inner_point"))
+                                                 width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
             #horizontal lines
             for i in range(1, self.grid_num_rows):
                 pos = i * (1 / self.grid_num_cols)
@@ -1103,13 +1063,13 @@ class PlaybackPanel(Frame):
                 right_point = imageProjective.mapSourceToDestPoint(tempPnt)
                 self.grid_inner_lines.append(
                     self.canvas_grid.create_line(left_point[0], left_point[1], right_point[0], right_point[1],
-                                                 fill="red", width=GRID_LINE_WIDTH, tags="inner_line"))
+                                                 fill="red", width=configuration.config['grid_line_size'], tags="inner_line"))
                 self.grid_inner_points.append(
                     self.canvas_grid.create_oval(left_point[0], left_point[1], left_point[0], left_point[1],
-                                                 width=GRID_POINT_WIDTH, fill='white', tags="inner_point"))
+                                                 width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
                 self.grid_inner_points.append(
                     self.canvas_grid.create_oval(right_point[0], right_point[1], right_point[0], right_point[1],
-                                                 width=GRID_POINT_WIDTH, fill='white', tags="inner_point"))
+                                                 width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
 
         #bind the inner widgets to the grab function
         for point in self.grid_inner_points:
@@ -1286,23 +1246,23 @@ class PlaybackPanel(Frame):
             line_old_coords = self.canvas_grid.coords(self.grid_lines[i])
             if self.grid_lines[i] == self.grabbed_obj:
                 continue
-            elif math.fabs(line_old_coords[0] - p1_coords[0]) < GRID_POINT_WIDTH and math.fabs(line_old_coords[1] - p1_coords[1]) < GRID_POINT_WIDTH:
+            elif math.fabs(line_old_coords[0] - p1_coords[0]) < configuration.config['grid_point_size'] and math.fabs(line_old_coords[1] - p1_coords[1]) < configuration.config['grid_point_size']:
                 self.canvas_grid.coords(self.grid_lines[i], new_coords[0], new_coords[1], line_old_coords[2], line_old_coords[3])
-            elif math.fabs(line_old_coords[2] - p1_coords[0]) < GRID_POINT_WIDTH and math.fabs(line_old_coords[3] - p1_coords[1]) < GRID_POINT_WIDTH:
+            elif math.fabs(line_old_coords[2] - p1_coords[0]) < configuration.config['grid_point_size'] and math.fabs(line_old_coords[3] - p1_coords[1]) < configuration.config['grid_point_size']:
                 self.canvas_grid.coords(self.grid_lines[i], line_old_coords[0], line_old_coords[1], new_coords[0],
                                         new_coords[1])
-            elif math.fabs(line_old_coords[0] - p2_coords[0]) < GRID_POINT_WIDTH and math.fabs(line_old_coords[1] - p2_coords[1]) < GRID_POINT_WIDTH:
+            elif math.fabs(line_old_coords[0] - p2_coords[0]) < configuration.config['grid_point_size'] and math.fabs(line_old_coords[1] - p2_coords[1]) < configuration.config['grid_point_size']:
                 self.canvas_grid.coords(self.grid_lines[i], new_coords[2], new_coords[3], line_old_coords[2],
                                         line_old_coords[3])
-            elif math.fabs(line_old_coords[2] - p2_coords[0]) < GRID_POINT_WIDTH and math.fabs(line_old_coords[3] - p2_coords[1]) < GRID_POINT_WIDTH:
+            elif math.fabs(line_old_coords[2] - p2_coords[0]) < configuration.config['grid_point_size'] and math.fabs(line_old_coords[3] - p2_coords[1]) < configuration.config['grid_point_size']:
                 self.canvas_grid.coords(self.grid_lines[i], line_old_coords[0], line_old_coords[1], new_coords[2],
                                         new_coords[3])
         for i in range(4): #update borders
-            if math.fabs(self.grid_borders[i][0] - p1_coords[0]) < GRID_POINT_WIDTH and math.fabs(
-                    self.grid_borders[i][1] - p1_coords[1]) < GRID_POINT_WIDTH:
+            if math.fabs(self.grid_borders[i][0] - p1_coords[0]) < configuration.config['grid_point_size'] and math.fabs(
+                    self.grid_borders[i][1] - p1_coords[1]) < configuration.config['grid_point_size']:
                 self.grid_borders[i] = (new_coords[0], new_coords[1])
-            elif math.fabs(self.grid_borders[i][0] - p2_coords[0]) < GRID_POINT_WIDTH and math.fabs(
-                    self.grid_borders[i][1] - p2_coords[1]) < GRID_POINT_WIDTH:
+            elif math.fabs(self.grid_borders[i][0] - p2_coords[0]) < configuration.config['grid_point_size'] and math.fabs(
+                    self.grid_borders[i][1] - p2_coords[1]) < configuration.config['grid_point_size']:
                 self.grid_borders[i] = (new_coords[2] , new_coords[3])
 
     def is_in_grid_borders(self, x, y): #determine whether the point (x,y) is inside grid borders
@@ -1349,12 +1309,12 @@ class PlaybackPanel(Frame):
             line_coords = list() #old coords and new coords for 2 lines
             for i in range(4):
                 old_coords = self.canvas_grid.coords(self.grid_lines[i])
-                if math.fabs(old_coords[0] - self.grabbed_xy[0]) < GRID_POINT_WIDTH and math.fabs(old_coords[1] - self.grabbed_xy[1]) < GRID_POINT_WIDTH:
+                if math.fabs(old_coords[0] - self.grabbed_xy[0]) < configuration.config['grid_point_size'] and math.fabs(old_coords[1] - self.grabbed_xy[1]) < configuration.config['grid_point_size']:
                     self.canvas_grid.coords(self.grid_lines[i], event.x, event.y, old_coords[2], old_coords[3])
                     lines_moved = True
                     line_coords.append(old_coords)
                     line_coords.append(self.canvas_grid.coords(self.grid_lines[i]))
-                elif math.fabs(old_coords[2] - self.grabbed_xy[0]) < GRID_POINT_WIDTH and math.fabs(old_coords[3] - self.grabbed_xy[1]) < GRID_POINT_WIDTH:
+                elif math.fabs(old_coords[2] - self.grabbed_xy[0]) < configuration.config['grid_point_size'] and math.fabs(old_coords[3] - self.grabbed_xy[1]) < configuration.config['grid_point_size']:
                     self.canvas_grid.coords(self.grid_lines[i], old_coords[0], old_coords[1], event.x, event.y)
                     lines_moved = True
                     line_coords.append(old_coords)
@@ -1362,7 +1322,7 @@ class PlaybackPanel(Frame):
             if lines_moved: #move the point
                 self.canvas_grid.move(self.grabbed_obj, event.x - self.grabbed_xy[0], event.y - self.grabbed_xy[1])
                 for i in range(4): #find the points in border list
-                    if math.fabs(self.grid_borders[i][0] - self.grabbed_xy[0]) < GRID_POINT_WIDTH and math.fabs(self.grid_borders[i][1] - self.grabbed_xy[1]) < GRID_POINT_WIDTH:
+                    if math.fabs(self.grid_borders[i][0] - self.grabbed_xy[0]) < configuration.config['grid_point_size'] and math.fabs(self.grid_borders[i][1] - self.grabbed_xy[1]) < configuration.config['grid_point_size']:
                         self.grid_borders[i] = (event.x, event.y)
                 if self.outer_borders_has_been_set:
                     self.grid_create_inner(modify=True)
@@ -1388,10 +1348,10 @@ class PlaybackPanel(Frame):
             new_x, new_y = self.find_closest_point_on_line(event.x, event.y, outerline)
             for i in range(len(self.grid_inner_lines)):
                 old_coords = self.canvas_grid.coords(self.grid_inner_lines[i])
-                if math.fabs(old_coords[0] - self.grabbed_xy[0]) < GRID_POINT_WIDTH and math.fabs(old_coords[1] - self.grabbed_xy[1]) < GRID_POINT_WIDTH:
+                if math.fabs(old_coords[0] - self.grabbed_xy[0]) < configuration.config['grid_point_size'] and math.fabs(old_coords[1] - self.grabbed_xy[1]) < configuration.config['grid_point_size']:
                     self.canvas_grid.coords(self.grid_inner_lines[i], new_x, new_y, old_coords[2], old_coords[3])
                     lines_moved = True
-                elif math.fabs(old_coords[2] - self.grabbed_xy[0]) < GRID_POINT_WIDTH and math.fabs(old_coords[3] - self.grabbed_xy[1]) < GRID_POINT_WIDTH:
+                elif math.fabs(old_coords[2] - self.grabbed_xy[0]) < configuration.config['grid_point_size'] and math.fabs(old_coords[3] - self.grabbed_xy[1]) < configuration.config['grid_point_size']:
                     self.canvas_grid.coords(self.grid_inner_lines[i], old_coords[0], old_coords[1], new_x, new_y)
                     lines_moved = True
             if lines_moved:
