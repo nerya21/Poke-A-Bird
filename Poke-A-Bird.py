@@ -53,7 +53,7 @@ class ControlBlock:
         self.cached = self.default_cache = {'total_number_of_events': 0,
                                             'session_timestamp': {'is_set': 0, 'value': 0},
                                             'export_location': {'is_set': 0, 'value': ''},
-                                            'grid': {'is_set': 0, 'value': {"rows": 0, "cols": 0, "borders": [], "inner_lines": [], "inner_points": [], "attr_path": ''}},
+                                            'grid': {'is_set': 0, 'value': {"rows": 0, "cols": 0, "borders": [], "inner_lines": [], "inner_points": [], "attributes": ''}},
                                             'media_name': '',
                                             'timestamp_type': 'global'}
 
@@ -894,7 +894,7 @@ class PrespectiveGrid(Toplevel):
         control_block.cached['grid']['value']['rows'] = self.grid_num_rows
         control_block.cached['grid']['value']['cols'] = self.grid_num_cols
         control_block.cached['grid']['value']['borders'] = self.grid_borders
-        control_block.cached['grid']['value']['attr_path'] = self.attr_file_path
+        control_block.cached['grid']['value']['attributes'] = self.grid_attributes
 
     def grid_load_from_cache(self):
         if control_block.cached['grid']['is_set'] == 0:
@@ -906,8 +906,7 @@ class PrespectiveGrid(Toplevel):
         self.grid_get_cols_rows(control_block.cached['grid']['value']['cols'], control_block.cached['grid']['value']['rows'])
         self.grid_create_outer(None, eventExist=False)
         self.grid_create_inner(first_use=True, modify=True, from_cache=True, json_lines=control_block.cached['grid']['value']['inner_lines'], json_points=control_block.cached['grid']['value']['inner_points'])
-        if control_block.cached['grid']['value']['attr_path']:
-            self.grid_load_attributes(filename=control_block.cached['grid']['value']['attr_path'])
+        self.grid_attributes = control_block.cached['grid']['value']['attributes']
 
     def find_closest_outerline(self, x, y):
         outerline = None
@@ -1381,6 +1380,7 @@ class SideBar(Frame):
     def on_stop(self):
         self.upper_bar.set_clock_button.config(relief=RAISED)
         self.upper_bar.set_location_button.config(relief=RAISED)
+        self.upper_bar.calibrate_button.config(relief=RAISED)
 
     def on_play(self):
         if control_block.cached['session_timestamp']['is_set']:
