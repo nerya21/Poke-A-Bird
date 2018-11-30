@@ -508,7 +508,7 @@ class Description(Frame):
         return description
 
 
-class Grid(Toplevel):
+class PrespectiveGrid(Toplevel):
 
     class GenImageProjective:
         def __init__(self, source_area, dest_area):
@@ -678,7 +678,7 @@ class Grid(Toplevel):
 
         self.parent.playback_panel.player.video_take_snapshot(0, 'snapshot.tmp.png', 0, 0)
         self.grid_window = Toplevel(self.parent.parent)
-        self.grid_window.title("Grid Calibration: Top Left")
+        self.grid_window.title("PrespectiveGrid Calibration: Top Left")
         baseheight = self.parent.playback_panel.winfo_height() + 10
         snapshot = Image.open('snapshot.tmp.png')
         hpercent = (baseheight / float(snapshot.size[1]))
@@ -715,17 +715,17 @@ class Grid(Toplevel):
         if eventExist:
             self.grid_borders.append((event.x, event.y))
         if len(self.grid_borders) == 1:
-            self.grid_window.title("Grid Calibration: Top Right")
+            self.grid_window.title("PrespectiveGrid Calibration: Top Right")
             self.grid_label.config(text="Top Right")
         elif len(self.grid_borders) == 2:
-            self.grid_window.title("Grid Calibration: Bottom Right")
+            self.grid_window.title("PrespectiveGrid Calibration: Bottom Right")
             self.grid_label.config(text="Bottom Right")
         elif len(self.grid_borders) == 3:
-            self.grid_window.title("Grid Calibration: Bottom Left")
+            self.grid_window.title("PrespectiveGrid Calibration: Bottom Left")
             self.grid_label.config(text="Bottom Left")
         elif len(self.grid_borders) == 4 or not eventExist:  # if we have 4 points for the grid, or got here from cache load
             self.grid_label.config(text="Outer Borders")
-            self.grid_window.title("Grid Calibration")
+            self.grid_window.title("PrespectiveGrid Calibration")
             Button(self.grid_window, text="OK", height=4, width=10,
                    command=lambda: self.grid_create_inner(first_use=True)).grid(row=1, column=5, columnspan=2)
             for i in range(4):  # draw lines
@@ -787,7 +787,7 @@ class Grid(Toplevel):
             height = buttom_left[1] - top_left[1]
             source_area = [top_left, top_right, buttom_right, buttom_left]
             dest_area = self.grid_borders
-            imageProjective = Grid.GenImageProjective(source_area, dest_area)
+            imageProjective = PrespectiveGrid.GenImageProjective(source_area, dest_area)
 
             # now calculate coeefficients for the right prespective
             if imageProjective.computeCoeefficients() != 0:  # 3 points on the same line, can't calculate
@@ -842,30 +842,28 @@ class Grid(Toplevel):
         self.grid_dump_to_cache()
 
     def grid_reset(self, generalReset=False):
-        if not self.grid_window:
+        if self.grid_window:
             self.grid_window.destroy()
         self.grid_window = None
         self.canvas_grid = None
-        self.grid_borders = list()
+        self.grid_borders = []
         self.grid_points = [None, None, None, None]  # outer
         self.grid_lines = [None, None, None, None]  # outer
-        self.grid_inner_lines = list()
-        self.grid_inner_points = list()
+        self.grid_inner_lines = []
+        self.grid_inner_points = []
         self.grabbed_obj = None
         self.grabbed_xy = None
         self.grid_num_rows = 1
         self.grid_num_cols = 1
         self.grid_label = None
         self.outer_borders_has_been_set = False
-        self.grid_attributes = list()
+        self.grid_attributes = []
         self.attributes_label = None
         self.attr_file_path = None
         self.is_grid_set = False
         self.parent.side_bar.upper_bar.calibrate_button.config(relief=RAISED)
         control_block.cached['grid']['is_set'] = 0
-        self.grid_dump_to_cache(uncache=True)
-        # if not generalReset: #generalReset = reset from outside of the grid windows, hence doesn't need to open set_grid again
-        # self.on_set_grid()
+        self.grid_dump_to_cache()
 
     def grid_load_attributes(self, filename=None):
         if (filename == None):  # user clicks the button and select by himself
@@ -886,21 +884,17 @@ class Grid(Toplevel):
         self.attributes_label.config(text="Attributes Loaded:\n %s" % os.path.basename(self.attr_file_path))
         self.grid_window.focus_force()
 
-    def grid_dump_to_cache(self, uncache=False):
-        if not uncache:
-            control_block.cached['grid']['value']['inner_points'] = []
-            for point in self.grid_inner_points:
-                control_block.cached['grid']['value']['inner_points'].append(self.canvas_grid.coords(point))
-            control_block.cached['grid']['value']['inner_lines'] = []
-            for line in self.grid_inner_lines:
-                control_block.cached['grid']['value']['inner_lines'].append(self.canvas_grid.coords(line))
-            control_block.cached['grid']['is_set'] = 1
-            control_block.cached['grid']['value']['rows'] = self.grid_num_rows
-            control_block.cached['grid']['value']['cols'] = self.grid_num_cols
-            control_block.cached['grid']['value']['borders'] = self.grid_borders
-            control_block.cached['grid']['value']['attr_path'] = self.attr_file_path
-        else:
-            control_block.cached['grid']['is_set'] = 0
+    def grid_dump_to_cache(self):
+        control_block.cached['grid']['value']['inner_points'] = []
+        for point in self.grid_inner_points:
+            control_block.cached['grid']['value']['inner_points'].append(self.canvas_grid.coords(point))
+        control_block.cached['grid']['value']['inner_lines'] = []
+        for line in self.grid_inner_lines:
+            control_block.cached['grid']['value']['inner_lines'].append(self.canvas_grid.coords(line))
+        control_block.cached['grid']['value']['rows'] = self.grid_num_rows
+        control_block.cached['grid']['value']['cols'] = self.grid_num_cols
+        control_block.cached['grid']['value']['borders'] = self.grid_borders
+        control_block.cached['grid']['value']['attr_path'] = self.attr_file_path
 
     def grid_load_from_cache(self):
         if control_block.cached['grid']['is_set'] == 0:
@@ -914,8 +908,6 @@ class Grid(Toplevel):
         self.grid_create_inner(first_use=True, modify=True, from_cache=True, json_lines=control_block.cached['grid']['value']['inner_lines'], json_points=control_block.cached['grid']['value']['inner_points'])
         if control_block.cached['grid']['value']['attr_path']:
             self.grid_load_attributes(filename=control_block.cached['grid']['value']['attr_path'])
-
-    # -----Auxiliary functions for grid Stuff -----
 
     def find_closest_outerline(self, x, y):
         outerline = None
@@ -1525,7 +1517,7 @@ class MainApplication(Frame):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
         self.event_manager = None
-        self.grid = Grid(self)
+        self.grid = PrespectiveGrid(self)
         self.parent.protocol("WM_DELETE_WINDOW", self.on_exit)
         self.temp = 0
 
