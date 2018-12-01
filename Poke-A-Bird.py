@@ -255,10 +255,10 @@ class ListBox(Frame):
 
             self.title = Label(self, text=title, anchor=W)
 
-            self.new_icon = PhotoImage(file='./media/add_record_25.png')
+            self.new_icon = PhotoImage(file='./media/icons8-add-row-25.png')
             self.new_button = Button(self, image=self.new_icon, command=self.parent.add_item, relief=FLAT)
 
-            self.remove_icon = PhotoImage(file='./media/remove_record_25.png')
+            self.remove_icon = PhotoImage(file='./media/icons8-delete-row-25.png')
             self.remove_button = Button(self, image=self.remove_icon, command=self.parent.delete_item, relief=FLAT)
 
             self.title.pack(fill=BOTH, side=LEFT, expand=TRUE)
@@ -350,28 +350,28 @@ class ControlBar(Frame):
         self.volume_var = IntVar()
         self.scale_var = DoubleVar()
         self.timer = ttkTimer(self.parent.playback_panel.OnTimer, 0.001)
-        self.pause_icon = PhotoImage(file='./media/pause.png')
-        self.play_icon = PhotoImage(file='./media/play.png')
+        self.pause_icon = PhotoImage(file='./media/icons8-pause-32.png')
+        self.play_icon = PhotoImage(file='./media/icons8-play-32.png')
         self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.on_play)
-        self.stop_icon = PhotoImage(file='./media/stop.png')
+        self.stop_icon = PhotoImage(file='./media/icons8-stop-32.png')
         self.stop = Button(self, image=self.stop_icon, command=self.parent.playback_panel.on_stop)
-        self.next_frame_icon = PhotoImage(file='./media/next_frame.png')
+        self.next_frame_icon = PhotoImage(file='./media/icons8-resume-button-32.png')
         self.next_frame = Button(self, image=self.next_frame_icon, command=self.parent.playback_panel.on_next_frame)
-        self.speedup_icon = PhotoImage(file='./media/speed_up.png')
+        self.speedup_icon = PhotoImage(file='./media/icons8-fast-forward-32.png')
         self.speedup = Button(self, image=self.speedup_icon, command=self.parent.playback_panel.on_speed_up)
-        self.speeddown_icon = PhotoImage(file='./media/speed_down.png')
+        self.speeddown_icon = PhotoImage(file='./media/icons8-rewind-32.png')
         self.speeddown = Button(self, image=self.speeddown_icon, command=self.parent.playback_panel.on_speed_down)
-        self.zoom_in_icon = PhotoImage(file='./media/zoom_in.png')
-        self.zoomin = Button(self, image=self.zoom_in_icon, command=self.parent.playback_panel.on_zoom_in)
-        self.zoom_out_icon = PhotoImage(file='./media/zoom_out.png')
-        self.zoomout = Button(self, image=self.zoom_out_icon, command=self.parent.playback_panel.on_zoom_out)
-        self.jump_forward_icon = PhotoImage(file='./media/int_forward.png')
+        # self.zoom_in_icon = PhotoImage(file='./media/icons8-zoom-in-32.png')
+        # self.zoomin = Button(self, image=self.zoom_in_icon, command=self.parent.playback_panel.on_zoom_in)
+        # self.zoom_out_icon = PhotoImage(file='./media/icons8-zoom-out-32.png')
+        # self.zoomout = Button(self, image=self.zoom_out_icon, command=self.parent.playback_panel.on_zoom_out)
+        self.jump_forward_icon = PhotoImage(file='./media/icons8-end-32.png')
         self.jump_forward = Button(self, image=self.jump_forward_icon, command=self.on_jump_backward)
-        self.jump_backward_icon = PhotoImage(file='./media/int_backward.png')
+        self.jump_backward_icon = PhotoImage(file='./media/icons8-skip-to-start-32.png')
         self.jump_backword = Button(self, image=self.jump_backward_icon, command=self.on_jump_forward)
-        self.fullscreen_icon = PhotoImage(file='./media/fullscreen.png')
+        self.fullscreen_icon = PhotoImage(file='./media/icons8-fit-to-width-32.png')
         self.fullsc = Button(self, image=self.fullscreen_icon, command=self.parent.playback_panel.on_full_screen)
-        self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
+        # self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.time_frame = Frame(self)
         self.time_label_balloon = Balloon(self)
@@ -386,11 +386,12 @@ class ControlBar(Frame):
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.stop.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
-        self.speedup.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.speeddown.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        self.speedup.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.next_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        self.zoomin.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        self.zoomout.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        # self.zoomin.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        # self.zoomout.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.jump_backword.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.jump_forward.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
@@ -482,7 +483,7 @@ class Description(Frame):
 
             self.title = Label(self, text=title, anchor=W)
 
-            self.remove_icon = PhotoImage(file='./media/remove_record_25.png')
+            self.remove_icon = PhotoImage(file='./media/icons8-delete-row-25.png')
             self.remove_button = Button(self, image=self.remove_icon, command=self.parent.clear, relief=FLAT)
 
             self.title.pack(fill=BOTH, side=LEFT, expand=TRUE)
@@ -1336,15 +1337,15 @@ class SideBar(Frame):
             Frame.__init__(self, parent, *args, **kwargs)
             self.parent = parent
 
-            self.set_clock_icon = PhotoImage(file='./media/clock_32.png')
+            self.set_clock_icon = PhotoImage(file='./media/icons8-clock-32.png')
             self.set_clock_button = Button(self, image=self.set_clock_icon, command=self.parent.on_set_clock_click)
             self.set_clock_button.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
 
-            self.set_location_icon = PhotoImage(file='./media/csv_32.png')
+            self.set_location_icon = PhotoImage(file='./media/icons8-csv-32.png')
             self.set_location_button = Button(self, image=self.set_location_icon, command=self.parent.on_set_location)
             self.set_location_button.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
 
-            self.calibrate_icon = PhotoImage(file='./media/grid_32.png')
+            self.calibrate_icon = PhotoImage(file='./media/icons8-grid-32.png')
             self.calibrate_button = Button(self, image=self.calibrate_icon)
             self.calibrate_button.pack(side=LEFT, expand=TRUE, fill=BOTH, padx=2)
 
@@ -1492,10 +1493,10 @@ class MainApplication(Frame):
                 self.status_label.config(text="Speed Down")
             elif event.widget == self.parent.control_bar.next_frame:
                 self.status_label.config(text="Next Frame")
-            elif event.widget == self.parent.control_bar.zoomin:
-                self.status_label.config(text="Zoom In")
-            elif event.widget == self.parent.control_bar.zoomout:
-                self.status_label.config(text="Zoom Out")
+            # elif event.widget == self.parent.control_bar.zoomin:
+            #     self.status_label.config(text="Zoom In")
+            # elif event.widget == self.parent.control_bar.zoomout:
+            #     self.status_label.config(text="Zoom Out")
             elif event.widget == self.parent.control_bar.jump_forward:
                 self.status_label.config(text="Jump Forward")
             elif event.widget == self.parent.control_bar.jump_backword:
