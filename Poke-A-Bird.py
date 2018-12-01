@@ -95,6 +95,7 @@ class Configuration:
                            'identity_list': [],
                            'event_list': [],
                            'speed': 1,
+                           'jump_time': 200,
                            'grid_point_size': 10,
                            'grid_line_size': 5,
                            'event_manager': {'size_x': 300, 'size_y': 300, 'pos_x': 300, 'pos_y': 300, 'number_of_events': 10},
@@ -169,24 +170,17 @@ class EventManager(Toplevel):
         self.parent = parent
         self.title('Event Manager')
         self.minsize(790, 250)
-
-        event_manager_config = configuration.config['event_manager']
-        self.geometry("%dx%d%+d%+d" % (event_manager_config['size_x'], event_manager_config['size_y'],
-                                       event_manager_config['pos_x'], event_manager_config['pos_y']))
+        self.geometry("%dx%d%+d%+d" % (configuration.config['event_manager']['size_x'], configuration.config['event_manager']['size_y'], configuration.config['event_manager']['pos_x'], configuration.config['event_manager']['pos_y']))
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.list = self.List(self, borderwidth=2)
         self.status_bar = self.StatusBar(self)
         self.list.pack(fill=BOTH, expand=TRUE)
         self.status_bar.pack(fill=BOTH)
-
         self.bind_all('<Enter>', self.status_bar.display, add=True)
 
     def get_selected_event_index(self):
         iid = self.list.listbox.focus()
-        if iid == '':
-            return -1
-        else:
-            return self.list.listbox.index(iid)
+        return self.list.listbox.index(iid) if iid != '' else -1
 
     def delete_item(self, item):
         control_block.events.pop(item)
@@ -405,7 +399,7 @@ class ControlBar(Frame):
         if not self.parent.playback_panel.is_media_loaded():
             return
 
-        new_timestamp = self.parent.playback_panel.player.get_time() + 400
+        new_timestamp = self.parent.playback_panel.player.get_time() + configuration.config['jump_time']
         if new_timestamp > self.parent.playback_panel.get_media_length():
             new_timestamp = self.parent.playback_panel.get_media_length()
 
@@ -415,7 +409,7 @@ class ControlBar(Frame):
         if not self.parent.playback_panel.is_media_loaded():
             return
 
-        new_timestamp = self.parent.playback_panel.player.get_time() - 400
+        new_timestamp = self.parent.playback_panel.player.get_time() - configuration.config['jump_time']
         if new_timestamp < 0:
             new_timestamp = 0
 
@@ -463,20 +457,23 @@ class ControlBar(Frame):
         self.update_time_label(self.parent.playback_panel.get_current_timestamp()/1000)
         self.update_time_label_baloon()
 
-    def on_play(self):
-        self.play.configure(image=self.pause_icon, command=self.parent.playback_panel.on_pause)
+    def on_resume(self):
+        self.play.configure(image=self.pause_icon)
 
     def on_pause(self):
-        self.play.configure(image=self.play_icon, command=self.parent.playback_panel.on_play)
+        self.play.configure(image=self.play_icon)
 
     def on_media_reached_end(self):
+        print('a')
+        # self.time_slider.set(0)
         self.on_pause()
 
     def on_stop(self):
+        self.time_slider.set(0)
         self.on_pause()
 
     def on_open(self):
-        self.on_play()
+        self.on_resume()
         self.update_time_label_baloon()
 
 class Description(Frame):
@@ -1104,7 +1101,7 @@ class PlaybackPanel(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-        self.vlc_instance = vlc.Instance()  # self.vlc_instance = vlc.Instance('--no-ts-trust-pcr','--ts-seek-percent')
+        self.vlc_instance = vlc.Instance() 
         self.player = self.vlc_instance.media_player_new()
         self.filename = None
         self.player.set_hwnd(self.winfo_id())
@@ -1116,9 +1113,12 @@ class PlaybackPanel(Frame):
         self.events = self.player.event_manager()
         self.events.event_attach(vlc.EventType.MediaPlayerEndReached, self.EventManager)
 
+    def on_media_reached_end(self):
+        self.parent.control_bar.on_media_reached_end()
+
     def EventManager(self, event):
         if event.type == vlc.EventType.MediaPlayerEndReached:
-            self.parent.control_bar.on_media_reached_end()
+            self.on_media_reached_end()
 
     def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
         video_size_x, video_size_y = window_x, window_y
@@ -1172,17 +1172,15 @@ class PlaybackPanel(Frame):
         session_timestamp = self.player.get_time()-control_block.cached['session_timestamp']['value']
         self.parent.add_item(self.player.get_time(), session_timestamp, identities, events, self.parent.side_bar.description.get_and_clear(), cell[0]+1, cell[1]+1, attribute_on_cell)
 
-    def on_media_reached_end(self):
-        self.player.set_time(0)
-
     def on_pause(self):
         self.player.pause()
-        self.parent.control_bar.on_pause()
+
+    def on_resume(self):
+        self.player.play()
 
     def on_stop(self):
         self.player.stop()
         self.player.set_media(None)
-        self.parent.control_bar.time_slider.set(0)
         self.parent.dump_events_to_file()
         control_block.dump_cache()
         if self.parent.event_manager:
@@ -1190,42 +1188,43 @@ class PlaybackPanel(Frame):
         self.parent.control_bar.on_stop()
         self.parent.side_bar.on_stop()
 
-    def on_play_pause(self, event=None):
-        if self.player.get_state() == vlc.State.Paused:
-            self.on_play()
+    def on_play(self, event=None):
+         
+        if self.player.get_state() == vlc.State.NothingSpecial:
+            self.on_open()
+            self.parent.side_bar.on_open()
+            self.parent.control_bar.on_open()
+            if self.parent.event_manager:
+                self.parent.event_manager.on_media_open()
+        elif self.player.get_state() == vlc.State.Paused:
+            self.on_resume()
+            self.parent.control_bar.on_resume()
         elif self.player.get_state() == vlc.State.Playing:
             self.on_pause()
-
-    def on_play(self):
-        if not self.player.get_media():
-            self.on_open()
-        else:
-            if self.player.get_state() == vlc.State.Ended:
-                self.player.set_media(self.media)
-            self.parent.control_bar.on_play()
-            self.parent.side_bar.on_play()
+            self.parent.control_bar.on_pause()
+        elif self.player.get_state() == vlc.State.Ended:
+            self.player.set_media(self.media)
+            self.player.set_time(0)
+            self.on_resume()
+            self.parent.control_bar.on_resume()
 
     def on_open(self):
         self.on_stop()
         p = pathlib.Path(os.path.expanduser(configuration.config['last_path']))
         fullname = askopenfilename(initialdir=p, title="Select media", filetypes=(("All Files", "*.*"), ("MP4 Video", "*.mp4"), ("AVCHD Video", "*.mts")))
-        if os.path.isfile(fullname):
-            dirname = os.path.dirname(fullname)
-            filename = os.path.basename(fullname)
-            self.filename = filename
-            configuration.config['last_path'] = dirname
-            self.media = self.vlc_instance.media_new(str(os.path.join(dirname, filename)))
-            self.player.set_media(self.media)
-            control_block.current_media_hash = md5(fullname)
-            control_block.load_cache()
-            control_block.cached['media_name'] = filename
-            if self.parent.event_manager:
-                self.parent.event_manager.on_media_open()
-
-            self.player.play()
-            self.parent.control_bar.on_open()
-            self.parent.side_bar.on_play()
-            self.player.set_rate(configuration.config['speed'])
+        if not os.path.isfile(fullname):
+            return
+        dirname = os.path.dirname(fullname)
+        filename = os.path.basename(fullname)
+        self.filename = filename
+        configuration.config['last_path'] = dirname
+        self.media = self.vlc_instance.media_new(str(os.path.join(dirname, filename)))
+        self.player.set_media(self.media)
+        control_block.current_media_hash = md5(fullname)
+        control_block.load_cache()
+        control_block.cached['media_name'] = filename
+        self.player.play()
+        self.player.set_rate(configuration.config['speed'])
 
     def OnTimer(self):
         if self.player == None or self.player.get_time() == -1:
@@ -1233,10 +1232,14 @@ class PlaybackPanel(Frame):
 
         self.parent.control_bar.time_slider.config(command=self.scale_sel_without_media_update, to=self.player.get_length())
         self.parent.control_bar.time_slider.set(self.player.get_time())
-        self.parent.control_bar.time_slider.config(command=self.scale_sel)
+        self.parent.control_bar.time_slider.config(command=self.scale_sel, to=self.player.get_length())
 
     def on_next_frame(self, event=None):
+        # if self.player.get_state() == vlc.State.Playing:
+        self.on_pause()
+        self.parent.control_bar.on_pause()
         self.player.next_frame()
+        self.parent.control_bar.time_slider.set(self.player.get_time())
 
     def set_speed(self, speed):
         self.player.set_rate(speed)
@@ -1380,7 +1383,7 @@ class SideBar(Frame):
         self.upper_bar.set_location_button.config(relief=RAISED)
         self.upper_bar.calibrate_button.config(relief=RAISED)
 
-    def on_play(self):
+    def on_open(self):
         if control_block.cached['session_timestamp']['is_set']:
             self.upper_bar.set_clock_button.config(relief=SUNKEN)
         if control_block.cached['export_location']['is_set']:
@@ -1642,7 +1645,7 @@ class MainApplication(Frame):
         self.bind_all("<Shift-Key>", self.side_bar.identity.on_mark_event)
         self.playback_panel.bind("<MouseWheel>", self.playback_panel.on_speed_change)
         self.control_bar.time_slider.bind("<MouseWheel>", self.control_bar.on_mouse_wheel)
-        self.bind_all("<space>", self.playback_panel.on_play_pause)
+        self.bind_all("<space>", self.playback_panel.on_play)
         self.bind_all("<Control-Key-e>", self.playback_panel.on_click)
         self.bind_all("<Control-Key-m>", self.on_open_event_manager_menu_click)
         self.bind_all("<Control-Key-r>", self.on_reset)
