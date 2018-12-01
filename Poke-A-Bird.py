@@ -122,8 +122,8 @@ class EventManager(Toplevel):
             self.listbox.bind('<Delete>', self.parent.delete_selected_item)
             self.listbox["columns"] = ('video_timestamp', 'session_timestamp', 'identities', 'events', 'description', 'pos_x', 'pos_y', 'attribute')
             self.listbox['show'] = 'headings'
-            self.listbox.column("video_timestamp", minwidth=110, width=110, anchor='w')
-            self.listbox.column("session_timestamp", minwidth=110, width=110, anchor='w')
+            self.listbox.column("video_timestamp", minwidth=80, width=80, anchor='w')
+            self.listbox.column("session_timestamp", minwidth=80, width=80, anchor='w')
             self.listbox.column("identities", minwidth=100, width=100, anchor='w')
             self.listbox.column("events", minwidth=100, width=100, anchor='w')
             self.listbox.column("description", minwidth=100, width=100, anchor='w')
@@ -185,7 +185,7 @@ class EventManager(Toplevel):
     def delete_item(self, item):
         control_block.events.pop(item)
         control_block.cached['total_number_of_events'] -= 1
-        self.list.refresh_events()
+        self.refresh_events()
 
     def delete_selected_item(self, event=None):
         current_selection = self.get_selected_event_index()
@@ -355,17 +355,12 @@ class ControlBar(Frame):
         self.speedup = Button(self, image=self.speedup_icon, command=self.parent.playback_panel.on_speed_up)
         self.speeddown_icon = PhotoImage(file='./media/icons8-rewind-32.png')
         self.speeddown = Button(self, image=self.speeddown_icon, command=self.parent.playback_panel.on_speed_down)
-        # self.zoom_in_icon = PhotoImage(file='./media/icons8-zoom-in-32.png')
-        # self.zoomin = Button(self, image=self.zoom_in_icon, command=self.parent.playback_panel.on_zoom_in)
-        # self.zoom_out_icon = PhotoImage(file='./media/icons8-zoom-out-32.png')
-        # self.zoomout = Button(self, image=self.zoom_out_icon, command=self.parent.playback_panel.on_zoom_out)
         self.jump_forward_icon = PhotoImage(file='./media/icons8-end-32.png')
         self.jump_forward = Button(self, image=self.jump_forward_icon, command=self.on_jump_backward)
         self.jump_backward_icon = PhotoImage(file='./media/icons8-skip-to-start-32.png')
         self.jump_backword = Button(self, image=self.jump_backward_icon, command=self.on_jump_forward)
         self.fullscreen_icon = PhotoImage(file='./media/icons8-fit-to-width-32.png')
         self.fullsc = Button(self, image=self.fullscreen_icon, command=self.parent.playback_panel.on_full_screen)
-        # self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.time_frame = Frame(self)
         self.time_label_balloon = Balloon(self, initwait=100)
@@ -384,8 +379,6 @@ class ControlBar(Frame):
         self.speedup.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
         self.next_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        # self.zoomin.pack(side=LEFT, fill=Y, padx=1, pady=3)
-        # self.zoomout.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.jump_backword.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.jump_forward.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
@@ -398,38 +391,31 @@ class ControlBar(Frame):
     def on_jump_backward(self, event=None):
         if not self.parent.playback_panel.is_media_loaded():
             return
-
         new_timestamp = self.parent.playback_panel.player.get_time() + configuration.config['jump_time']
         if new_timestamp > self.parent.playback_panel.get_media_length():
             new_timestamp = self.parent.playback_panel.get_media_length()
-
         self.parent.playback_panel.player.set_time(new_timestamp)
 
     def on_jump_forward(self, event=None):
         if not self.parent.playback_panel.is_media_loaded():
             return
-
         new_timestamp = self.parent.playback_panel.player.get_time() - configuration.config['jump_time']
         if new_timestamp < 0:
             new_timestamp = 0
-
         self.parent.playback_panel.player.set_time(new_timestamp)
 
     def on_mouse_wheel(self, event):
         if not self.parent.playback_panel.is_media_loaded():
             return
-
         if self.parent.playback_panel.player.get_state == 'Playing':
             was_playing = True
             self.parent.playback_panel.player.pause()
         else:
             was_playing = False
-
         if event.delta > 0:
             self.on_jump_forward()
         else:
             self.on_jump_backward()
-
         if was_playing:
             self.parent.playback_panel.player.play()
 
@@ -464,8 +450,6 @@ class ControlBar(Frame):
         self.play.configure(image=self.play_icon)
 
     def on_media_reached_end(self):
-        print('a')
-        # self.time_slider.set(0)
         self.on_pause()
 
     def on_stop(self):
@@ -482,12 +466,9 @@ class Description(Frame):
         def __init__(self, parent, title, *args, **kwargs):
             Frame.__init__(self, parent, *args, **kwargs)
             self.parent = parent
-
             self.title = Label(self, text=title, anchor=W)
-
             self.remove_icon = PhotoImage(file='./media/icons8-delete-row-25.png')
             self.remove_button = Button(self, image=self.remove_icon, command=self.parent.clear, relief=FLAT)
-
             self.title.pack(fill=BOTH, side=LEFT, expand=TRUE)
             self.remove_button.pack(side=LEFT, padx=1, pady=1)
 
@@ -1122,20 +1103,16 @@ class PlaybackPanel(Frame):
 
     def get_relative_location(self, click_x, click_y, window_x, window_y, video_res_x, video_res_y):
         video_size_x, video_size_y = window_x, window_y
-
         if window_x / video_res_x > window_y / video_res_y:
             video_size_x = window_y * video_res_x / video_res_y
         else:
             video_size_y = window_x * video_res_y / video_res_x
-
         rel_click_x = (click_x - (abs(window_x - video_size_x) / 2)) / video_size_x
         rel_click_y = (click_y - (abs(window_y - video_size_y) / 2)) / video_size_y
-
         if rel_click_x < 0 or rel_click_x > 1:
             rel_click_x = -1
         if rel_click_y < 0 or rel_click_y > 1:
             rel_click_y = -1
-
         return rel_click_x, rel_click_y
 
     def on_click_released(self, event):
@@ -1239,7 +1216,6 @@ class PlaybackPanel(Frame):
         self.on_pause()
         self.parent.control_bar.on_pause()
         self.player.next_frame()
-        self.parent.control_bar.time_slider.set(self.player.get_time())
 
     def set_speed(self, speed):
         self.player.set_rate(speed)
@@ -1352,30 +1328,24 @@ class SideBar(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-
         self.upper_bar = SideBar.UpperBar(self)
-        self.upper_bar_spacer = ttk.Separator(self, orient=HORIZONTAL)
         self.identity = ListBox(self, 'identity_list', 'Bird')
         self.events = ListBox(self, 'event_list', 'Event')
         self.description = Description(self)
-        self.description_spacer = ttk.Separator(self, orient=HORIZONTAL)
-
         self.upper_bar.pack(fill=X)
-        self.upper_bar_spacer.pack(fill=X, pady=5)
+        ttk.Separator(self, orient=HORIZONTAL).pack(fill=X, pady=5)
         self.identity.pack(pady=2)
         self.events.pack(pady=2)
         self.description.pack(fill=X)
-        self.description_spacer.pack(fill=X, pady=5)
+        ttk.Separator(self, orient=HORIZONTAL).pack(fill=X, pady=5)
 
     def on_set_clock_click(self):
         if control_block.cached['session_timestamp']['is_set'] == 1:
             return
         if not self.parent.playback_panel.is_media_loaded():
             return
-
         control_block.cached['session_timestamp']['value'] = self.parent.playback_panel.get_current_timestamp()
         control_block.cached['session_timestamp']['is_set'] = 1
-
         self.upper_bar.set_clock_button.config(relief=SUNKEN)
 
     def on_stop(self):
@@ -1393,11 +1363,9 @@ class SideBar(Frame):
         control_block.cached['session_timestamp']['value'] = 0
         control_block.cached['session_timestamp']['is_set'] = 0
         self.upper_bar.set_clock_button.config(relief=RAISED)
-
         control_block.cached['export_location']['is_set'] = 0
         control_block.cached['export_location']['value'] = ''
         self.upper_bar.set_location_button.config(relief=RAISED)
-
         self.parent.playback_panel.grid_reset(generalReset=True)
 
     def is_clock_set(self):
@@ -1493,10 +1461,6 @@ class MainApplication(Frame):
                 self.status_label.config(text="Speed Down")
             elif event.widget == self.parent.control_bar.next_frame:
                 self.status_label.config(text="Next Frame")
-            # elif event.widget == self.parent.control_bar.zoomin:
-            #     self.status_label.config(text="Zoom In")
-            # elif event.widget == self.parent.control_bar.zoomout:
-            #     self.status_label.config(text="Zoom Out")
             elif event.widget == self.parent.control_bar.jump_forward:
                 self.status_label.config(text="Jump Forward")
             elif event.widget == self.parent.control_bar.jump_backword:
