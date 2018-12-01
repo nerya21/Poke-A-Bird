@@ -374,12 +374,12 @@ class ControlBar(Frame):
         # self.show_grid_icon = PhotoImage(file='./media/show_grid.png')
         self.volslider = Scale(self, variable=self.volume_var, command=self.parent.playback_panel.on_volume_change, from_=0, to=100, orient=HORIZONTAL, length=100, showvalue=0)
         self.time_frame = Frame(self)
-        self.time_label_balloon = Balloon(self)
+        self.time_label_balloon = Balloon(self, initwait=100)
         self.time_slider = Scale(self.time_frame, variable=self.scale_var, command=self.parent.playback_panel.scale_sel_without_media_update, from_=0, orient=HORIZONTAL, resolution=-1, showvalue=0)
-        self.time_label = Label(self.time_frame, text="00:00:00.000", width=9)
+        self.time_label = Label(self.time_frame, text=" 00:00:00.000", width=9)
         self.time_label.pack(side=RIGHT)
         self.time_label.bind('<Button-1>', self.on_time_label_click)
-        self.time_label_balloon.bind(self.time_label, '{}'.format(control_block.cached['timestamp_type']))
+        self.time_label_balloon.bind(self.time_label, '{} timestamp'.format(control_block.cached['timestamp_type']))
         self.time_slider.pack(side=RIGHT, fill=X, expand=1)
         self.time_frame.pack(side=TOP, fill=X, expand=1)
         self.play.pack(side=LEFT, fill=Y, padx=1, pady=3)
@@ -439,6 +439,18 @@ class ControlBar(Frame):
         if was_playing:
             self.parent.playback_panel.player.play()
 
+    def update_time_label(self, seconds=0):
+        if control_block.cached['timestamp_type'] == 'global':
+            time_label_text = self.parent.translate_timestamp_to_clock(seconds)
+        elif control_block.cached['timestamp_type'] == 'session':
+            time_label_text = self.parent.translate_timestamp_to_clock(seconds - control_block.cached['session_timestamp']['value']/1000)
+        elif control_block.cached['timestamp_type'] == 'total':
+            time_label_text = self.parent.translate_timestamp_to_clock(self.parent.playback_panel.get_media_length()/1000)
+        self.time_label.config(text=time_label_text)
+
+    def update_time_label_baloon(self):
+        self.time_label_balloon.bind(self.time_label, '{} timestamp'.format(control_block.cached['timestamp_type']))
+
     def on_time_label_click(self, event=None):
         if not self.parent.playback_panel.is_media_loaded():
             return
@@ -448,9 +460,8 @@ class ControlBar(Frame):
             control_block.cached['timestamp_type'] = 'total'
         elif control_block.cached['timestamp_type'] == 'total':
             control_block.cached['timestamp_type'] = 'global'
-
         self.update_time_label(self.parent.playback_panel.get_current_timestamp()/1000)
-        self.time_label_balloon.bind(self.time_label, '{} timestamp'.format(control_block.cached['timestamp_type']))
+        self.update_time_label_baloon()
 
     def on_play(self):
         self.play.configure(image=self.pause_icon, command=self.parent.playback_panel.on_pause)
@@ -464,15 +475,9 @@ class ControlBar(Frame):
     def on_stop(self):
         self.on_pause()
 
-    def update_time_label(self, seconds):
-        if control_block.cached['timestamp_type'] == 'global':
-            time_label_text = self.parent.translate_timestamp_to_clock(seconds)
-        elif control_block.cached['timestamp_type'] == 'session':
-            time_label_text = self.parent.translate_timestamp_to_clock(seconds - control_block.cached['session_timestamp']['value']/1000)
-        elif control_block.cached['timestamp_type'] == 'total':
-            time_label_text = self.parent.translate_timestamp_to_clock(self.parent.playback_panel.get_media_length()/1000)
-        self.time_label.config(text=time_label_text)
-
+    def on_open(self):
+        self.on_play()
+        self.update_time_label_baloon()
 
 class Description(Frame):
 
@@ -1226,7 +1231,7 @@ class PlaybackPanel(Frame):
                 self.parent.event_manager.on_media_open()
 
             self.player.play()
-            self.parent.control_bar.on_play()
+            self.parent.control_bar.on_open()
             self.parent.side_bar.on_play()
             self.player.set_rate(configuration.config['speed'])
 
