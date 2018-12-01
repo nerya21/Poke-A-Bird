@@ -676,7 +676,6 @@ class PrespectiveGrid(Toplevel):
         self.outer_borders_has_been_set = False
         self.grid_attributes = list()
         self.attributes_label = None
-        self.attr_file_path = None
 
     def set_grid(self):
         if not self.parent.playback_panel.is_media_loaded():
@@ -745,10 +744,6 @@ class PrespectiveGrid(Toplevel):
         else:  # canvas clicks after this calibration
             return
 
-    def load_attributes_from_clipboard(self):
-        clipboard = self.parent.parent.clipboard_get()
-        self.grid_attributes = [line.split('\t') for line in clipboard.split('\n')][:-1]
-
     def grid_create_inner(self, modify=False, first_use=False, from_cache=False, json_lines=None, json_points=None):  # 3rd phase of calibration - create the inner lines and points
         if modify:  # remove current inner grid (and later create one from scratch)
             for line in self.grid_inner_lines:
@@ -764,25 +759,17 @@ class PrespectiveGrid(Toplevel):
                     break
             self.grid_label.config(text="Inner Borders")
             self.outer_borders_has_been_set = True
-            Button(self.grid_window, text="Finish", height=4, width=12,
-                   command=lambda: self.grid_finish()).grid(row=1, column=5, columnspan=2)
-            Button(self.grid_window, text="Reset", height=4, width=12,
-                   command=lambda: self.grid_reset()).grid(row=2, column=5, columnspan=2)
+            Button(self.grid_window, text="Finish", height=4, width=12, command=lambda: self.grid_finish()).grid(row=1, column=5, columnspan=2)
+            Button(self.grid_window, text="Reset", height=4, width=12, command=lambda: self.grid_reset()).grid(row=2, column=5, columnspan=2)
             self.attributes_label = Label(self.grid_window, text="")
             self.attributes_label.grid(row=5, column=5)
-            Button(self.grid_window, text="Load Attributes", height=4, width=12,
-                   command=lambda: self.grid_load_attributes()).grid(row=3, column=5, columnspan=2)
-            Button(self.grid_window, text="Load Attributes from clipboard", height=4, width=12,
-                   command=self.load_attributes_from_clipboard).grid(row=4, column=5, columnspan=2)
+            Button(self.grid_window, text="Load attributes\nfrom CSV file", height=4, width=12, command=lambda: self.grid_load_attributes(False)).grid(row=3, column=5, columnspan=2)
+            Button(self.grid_window, text="Load attributes\nfrom clipboard", height=4, width=12, command=lambda: self.grid_load_attributes(True)).grid(row=4, column=5, columnspan=2)
         if from_cache:
             for json_line in json_lines:
-                self.grid_inner_lines.append(
-                    self.canvas_grid.create_line(json_line[0], json_line[1], json_line[2], json_line[3],
-                                                 fill="red", width=configuration.config['grid_line_size'], tags="inner_line"))
+                self.grid_inner_lines.append(self.canvas_grid.create_line(json_line[0], json_line[1], json_line[2], json_line[3], fill="red", width=configuration.config['grid_line_size'], tags="inner_line"))
             for json_point in json_points:
-                self.grid_inner_points.append(
-                    self.canvas_grid.create_oval(json_point[0], json_point[1], json_point[0], json_point[1],
-                                                 width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
+                self.grid_inner_points.append(self.canvas_grid.create_oval(json_point[0], json_point[1], json_point[0], json_point[1],  width=configuration.config['grid_point_size'], fill='white', tags="inner_point"))
         else:  # not from cache - calculate prespective using genImageProjective class
             # first create a rectangle as it was straight
             top_left = (0, 0)
@@ -865,29 +852,34 @@ class PrespectiveGrid(Toplevel):
         self.outer_borders_has_been_set = False
         self.grid_attributes = []
         self.attributes_label = None
-        self.attr_file_path = None
         self.is_grid_set = False
         self.parent.side_bar.upper_bar.calibrate_button.config(relief=RAISED)
         control_block.cached['grid']['is_set'] = 0
         self.grid_dump_to_cache()
 
-    def grid_load_attributes(self, filename=None):
-        if (filename == None):  # user clicks the button and select by himself
-            p = pathlib.Path(os.path.expanduser(configuration.config['last_path']))
-            self.attr_file_path = askopenfilename(initialdir=p, title="choose your file", filetypes=(("all files", "*.*"), ("CSV file (*.csv)", "*.csv")))
-            filename = self.attr_file_path
-        else:  # load from cache - given filename from json
-            self.attr_file_path = filename
-        if filename == "":  # no file selected
-            return
+    def load_attributes_from_csv(self):
+        p = pathlib.Path(os.path.expanduser(configuration.config['last_path']))
+        filename = askopenfilename(initialdir=p, title="choose your file", filetypes=(("all files", "*.*"), ("CSV file (*.csv)", "*.csv")))
+        if filename == '':
+            return None
+
         with open(filename, newline='') as csvfile:
             spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
-            self.grid_attributes = list()
+            attributes = []
             for row in spamreader:
                 vals_in_row = ', '.join(row)
                 vals_in_row = vals_in_row.split(",")
-                self.grid_attributes.append(vals_in_row)
-        self.attributes_label.config(text="Attributes Loaded:\n %s" % os.path.basename(self.attr_file_path))
+                attributes.append(vals_in_row)
+
+        return attributes
+
+    def load_attributes_from_clipboard(self):
+        clipboard = self.parent.parent.clipboard_get()
+        return [line.split('\t') for line in clipboard.split('\n')][:-1]
+
+    def grid_load_attributes(self, from_clipboard):
+        self.grid_attributes = self.load_attributes_from_clipboard() if from_clipboard else self.load_attributes_from_csv()
+        self.attributes_label.config(text="Attributes loaded")
         self.grid_window.focus_force()
 
     def grid_dump_to_cache(self):
