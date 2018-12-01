@@ -109,7 +109,6 @@ def md5(fname):
         hash_md5.update(buffer)
     return hash_md5.hexdigest()
 
-
 class EventManager(Toplevel):
 
     class List(Frame):
@@ -454,12 +453,13 @@ class ControlBar(Frame):
 
     def on_stop(self):
         self.time_slider.set(0)
+        self.update_time_label()
         self.on_pause()
 
     def on_open(self):
         self.on_resume()
         self.update_time_label_baloon()
-
+        
 class Description(Frame):
 
     class Title(Frame):
@@ -655,6 +655,16 @@ class PrespectiveGrid(Toplevel):
         self.grid_attributes = list()
         self.attributes_label = None
 
+    def show_attributes(self):
+        if not self.grid_attributes:
+            return
+        self.attributes_window = Toplevel(self.parent.parent)
+        self.attributes_window.title('Attributes')
+        self.attributes_window.resizable(0, 0)
+        for row_index, row in enumerate(self.grid_attributes):
+            for col_index, item in enumerate(row):
+                Label(self.attributes_window, text=item,relief = RIDGE).grid(row=row_index, column=col_index, sticky=NSEW)
+                
     def set_grid(self):
         if not self.parent.playback_panel.is_media_loaded():
             return
@@ -1408,10 +1418,12 @@ class MenuBar(Frame):
         self.menu.add_cascade(label="File", menu=file_menu)
 
         session_menu = Menu(self.menu, tearoff=0)
+        session_menu.add_command(label="Show attributes", command=self.parent.grid.show_attributes)
+        session_menu.insert_separator(1)
         session_menu.add_command(label="Reset grid", command=self.parent.grid.grid_reset)
         session_menu.add_command(label="Reset clock")
         session_menu.add_command(label="Reset CSV")
-        session_menu.insert_separator(3)
+        session_menu.insert_separator(4)
         session_menu.add_command(label="Reset session settings", accelerator='Ctrl+R', command=self.parent.on_reset)
         self.menu.add_cascade(label="Session", menu=session_menu)
 
