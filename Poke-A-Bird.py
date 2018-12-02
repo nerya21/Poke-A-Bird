@@ -1370,13 +1370,9 @@ class SideBar(Frame):
             self.upper_bar.set_location_button.config(relief=SUNKEN)
 
     def on_clock_reset(self):
-        control_block.cached['session_timestamp']['value'] = 0
-        control_block.cached['session_timestamp']['is_set'] = 0
         self.upper_bar.set_clock_button.config(relief=RAISED)
 
     def on_export_location_reset(self):
-        control_block.cached['export_location']['is_set'] = 0
-        control_block.cached['export_location']['value'] = ''
         self.upper_bar.set_location_button.config(relief=RAISED)
     
     def on_grid_reset(self):
@@ -1626,10 +1622,10 @@ class MainApplication(Frame):
         self.side_bar.on_clock_reset()
 
     def export_location_reset(self):
-        control_block.cached['export_location']['is_set'] = 0
-        control_block.cached['export_location']['value'] = ''
         self.side_bar.on_export_location_reset()
         self.dump_events_to_file()
+        control_block.cached['export_location']['is_set'] = 0
+        control_block.cached['export_location']['value'] = ''
         control_block.cached['total_number_of_events'] = 0
         if self.event_manager:
             self.event_manager.on_media_stop()
@@ -1646,7 +1642,7 @@ class MainApplication(Frame):
     def dump_events_to_file(self):
         if not self.side_bar.is_location_set():
             if len(control_block.events) > 0:
-                raise Exception()
+                raise Exception('Losing events! Something went really wrong!')
             return
         for item in control_block.events:
             self.write_record_to_csv(item)
