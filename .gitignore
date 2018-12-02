@@ -1,5 +1,6 @@
 cache.json
 config.json
-prerequisites/output
-prerequisites/bin
+prerequisites/output/*.*
+prerequisites/bin/*.*
+!prerequisites/bin/install_packages.bat
 .vscode
