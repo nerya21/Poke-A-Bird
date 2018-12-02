@@ -842,8 +842,8 @@ class PrespectiveGrid(Toplevel):
         self.grid_attributes = []
         self.attributes_label = None
         self.is_grid_set = False
-        self.parent.side_bar.upper_bar.calibrate_button.config(relief=RAISED)
         control_block.cached['grid']['is_set'] = 0
+        self.parent.side_bar.on_grid_reset()
         self.grid_dump_to_cache()
 
     def load_attributes_from_csv(self):
@@ -1093,7 +1093,7 @@ class PlaybackPanel(Frame):
     def __init__(self, parent, *args, **kwargs):
         Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-        self.vlc_instance = vlc.Instance() 
+        self.vlc_instance = vlc.Instance('--quiet') 
         self.player = self.vlc_instance.media_player_new()
         self.filename = None
         self.player.set_hwnd(self.winfo_id())
@@ -1370,14 +1370,18 @@ class SideBar(Frame):
         if control_block.cached['export_location']['is_set']:
             self.upper_bar.set_location_button.config(relief=SUNKEN)
 
-    def on_reset(self):
+    def on_clock_reset(self):
         control_block.cached['session_timestamp']['value'] = 0
         control_block.cached['session_timestamp']['is_set'] = 0
         self.upper_bar.set_clock_button.config(relief=RAISED)
+
+    def on_export_location_reset(self):
         control_block.cached['export_location']['is_set'] = 0
         control_block.cached['export_location']['value'] = ''
         self.upper_bar.set_location_button.config(relief=RAISED)
-        self.parent.grid.grid_reset(generalReset=True)
+    
+    def on_grid_reset(self):
+        self.parent.side_bar.upper_bar.calibrate_button.config(relief=RAISED)
 
     def is_clock_set(self):
         return control_block.cached['session_timestamp']['is_set'] == 1
@@ -1421,9 +1425,9 @@ class MenuBar(Frame):
         session_menu = Menu(self.menu, tearoff=0)
         session_menu.add_command(label="Show attributes", command=self.parent.grid.show_attributes)
         session_menu.insert_separator(1)
-        session_menu.add_command(label="Reset grid", command=self.parent.grid.grid_reset)
-        session_menu.add_command(label="Reset clock")
-        session_menu.add_command(label="Reset CSV")
+        session_menu.add_command(label="Reset grid", command=self.parent.on_grid_reset)
+        session_menu.add_command(label="Reset clock", command=self.parent.on_clock_reset)
+        session_menu.add_command(label="Reset CSV", command=self.parent.on_export_location_reset)
         session_menu.insert_separator(4)
         session_menu.add_command(label="Reset session settings", accelerator='Ctrl+R', command=self.parent.on_reset)
         self.menu.add_cascade(label="Session", menu=session_menu)
@@ -1596,15 +1600,49 @@ class MainApplication(Frame):
             json.dump(configuration.config, fp)
         self.parent.destroy()
 
+    def on_grid_reset(self):
+        if not self.playback_panel.is_media_loaded():
+            return
+        if not messagebox.askokcancel("Reset Session", 'Are you sure you wish to reset\nthe grid calibration?'):
+            return 
+        self.grid.grid_reset(generalReset=True)
+
+    def on_export_location_reset(self):
+        if not self.playback_panel.is_media_loaded():
+            return
+        if not messagebox.askokcancel("Reset Session", 'Are you sure you wish to reset\nthe exporting location?'):
+            return 
+        self.export_location_reset()
+
+    def on_clock_reset(self):
+        if not self.playback_panel.is_media_loaded():
+            return
+        if not messagebox.askokcancel("Reset Clock", 'Are you sure you wish to reset\nthe current session clock?'):
+            return 
+        self.clock_reset()
+
+    def clock_reset(self):
+        control_block.cached['session_timestamp']['is_set'] = 0
+        control_block.cached['session_timestamp']['value'] = ''
+        self.side_bar.on_clock_reset()
+
+    def export_location_reset(self):
+        control_block.cached['export_location']['is_set'] = 0
+        control_block.cached['export_location']['value'] = ''
+        self.side_bar.on_export_location_reset()
+        self.dump_events_to_file()
+        control_block.cached['total_number_of_events'] = 0
+        if self.event_manager:
+            self.event_manager.on_media_stop()
+
     def on_reset(self, event=None):
         if not self.playback_panel.is_media_loaded():
             return
-        if messagebox.askokcancel("Reset Session", 'Are you sure you wish to reset\nall session settings?'):
-            self.dump_events_to_file()
-            control_block.cached['total_number_of_events'] = 0
-            if self.event_manager:
-                self.event_manager.on_media_stop()
-            self.side_bar.on_reset()
+        if not messagebox.askokcancel("Reset Session", 'Are you sure you wish to reset\nall session settings?'):
+            return 
+        self.clock_reset()
+        self.export_location_reset()
+        self.grid.grid_reset(generalReset=True)
 
     def dump_events_to_file(self):
         if not self.side_bar.is_location_set():
