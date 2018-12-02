@@ -1428,7 +1428,7 @@ class MenuBar(Frame):
         session_menu.add_command(label="Reset grid", command=self.parent.on_grid_reset)
         session_menu.add_command(label="Reset clock", command=self.parent.on_clock_reset)
         session_menu.add_command(label="Reset CSV", command=self.parent.on_export_location_reset)
-        session_menu.insert_separator(4)
+        session_menu.insert_separator(5)
         session_menu.add_command(label="Reset session settings", accelerator='Ctrl+R', command=self.parent.on_reset)
         self.menu.add_cascade(label="Session", menu=session_menu)
 
