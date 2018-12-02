@@ -42,7 +42,7 @@ from PIL import Image
 from pandas import to_datetime
 from Pmw import Balloon
 
-__version__ = '0.3'
+__version__ = '0.4'
 
 class ControlBlock:
     def __init__(self):
@@ -1670,7 +1670,7 @@ class MainApplication(Frame):
 if __name__ == "__main__":
     root = Tk()
     root.minsize(width=988, height=551)
-    root.title("Poke-A-Bird")
+    root.title("Poke-A-Bird v{}".format(__version__))
     root.iconbitmap('./media/bird.ico')
     configuration = Configuration()
     control_block = ControlBlock()

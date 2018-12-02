@@ -1,1 +1,5 @@
-.idea/*
+cache.json
+config.json
+prerequisites/output
+prerequisites/bin
+.vscode
