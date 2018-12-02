@@ -654,6 +654,7 @@ class PrespectiveGrid(Toplevel):
         self.outer_borders_has_been_set = False
         self.grid_attributes = list()
         self.attributes_label = None
+        self.is_grid_set = False
 
     def show_attributes(self):
         if not self.grid_attributes:
@@ -817,7 +818,7 @@ class PrespectiveGrid(Toplevel):
     def grid_finish(self):  # 4th phase of calibration - save to cache and hide the grid window
         self.grid_window.withdraw()  # hides the grid window, but we can still work on it in the background
         control_block.cached['grid']['is_set'] = 1
-        # self.is_grid_set = True
+        self.is_grid_set = True
 
         self.parent.side_bar.upper_bar.calibrate_button.config(relief=SUNKEN)
         self.grid_dump_to_cache()
@@ -1376,7 +1377,7 @@ class SideBar(Frame):
         control_block.cached['export_location']['is_set'] = 0
         control_block.cached['export_location']['value'] = ''
         self.upper_bar.set_location_button.config(relief=RAISED)
-        self.parent.playback_panel.grid_reset(generalReset=True)
+        self.parent.grid.grid_reset(generalReset=True)
 
     def is_clock_set(self):
         return control_block.cached['session_timestamp']['is_set'] == 1
@@ -1402,7 +1403,7 @@ class SideBar(Frame):
         return control_block.cached['export_location']['is_set'] == 1
 
     def is_grid_set(self):
-        return control_block.cached['grid']['is_set'] == 1
+        return self.parent.grid.is_grid_set
 
 
 class MenuBar(Frame):
