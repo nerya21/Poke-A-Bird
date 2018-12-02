@@ -1,5 +1,5 @@
 #define MyAppName "Poke-A-Bird Prerequisites"
-#define MyAppVersion "0.4"
+#define MyAppVersion "0.5"
 #define MyAppPublisher "Elad Yacovi and Nerya Meshulam, Tel Aviv University"
 #define MyAppURL "https://github.com/nerya21/Poke-A-Bird"
 
@@ -7,7 +7,7 @@
 ; NOTE: The value of AppId uniquely identifies this application.
 ; Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{11DC48E1-8608-4767-BD8C-088F72C18D37}}
+AppId={{38E0C05C-2A59-4D95-BE8B-7C307C1A777C}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}

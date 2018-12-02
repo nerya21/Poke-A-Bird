@@ -1,7 +1,8 @@
-REM supports poke-a-bird_prerequisites_0.2 and above
 @echo off
 
 setlocal
-PATH=%PATH%;%LOCALAPPDATA%\Programs\Python\Python37-32\;%LOCALAPPDATA%\Programs\Python\Python37-32\Scripts
+set PATH=%LOCALAPPDATA%\Programs\Python\Python37-32\;%LOCALAPPDATA%\Programs\Python\Python37-32\Scripts
+set PYTHONHOME=
+set PYTHONPATH=
 python.exe .\Poke-A-Bird.py
 endlocal

@@ -39,7 +39,6 @@ import datetime
 import time
 import PIL
 from PIL import Image
-from pandas import to_datetime
 from Pmw import Balloon
 
 __version__ = '0.4'
