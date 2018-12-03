@@ -1103,6 +1103,7 @@ class PlaybackPanel(Frame):
         self.parent.side_bar.upper_bar.calibrate_button.config(command=self.parent.on_grid_set_button_click)
         self.events = self.player.event_manager()
         self.events.event_attach(vlc.EventType.MediaPlayerEndReached, self.EventManager)
+        self.player.audio_set_volume(0)
 
     def on_media_reached_end(self):
         self.parent.control_bar.on_media_reached_end()
