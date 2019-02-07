@@ -1,5 +1,5 @@
 """
-Copyright (c) 2018 Elad Yacovi, Nerya Meshulam
+Copyright (c) 2018-2019 Elad Yacovi, Nerya Meshulam
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ import PIL
 from PIL import Image
 from Pmw import Balloon
 
-__version__ = '0.4'
+__version__ = '0.5'
 
 class ControlBlock:
     def __init__(self):
@@ -347,8 +347,8 @@ class ControlBar(Frame):
         self.play = Button(self, image=self.play_icon, command=self.parent.playback_panel.on_play)
         self.stop_icon = PhotoImage(file='./media/icons8-stop-32.png')
         self.stop = Button(self, image=self.stop_icon, command=self.parent.playback_panel.on_stop)
-        self.next_frame_icon = PhotoImage(file='./media/icons8-resume-button-32.png')
-        self.next_frame = Button(self, image=self.next_frame_icon, command=self.parent.playback_panel.on_next_frame)
+        # self.next_frame_icon = PhotoImage(file='./media/icons8-resume-button-32.png')
+        # self.next_frame = Button(self, image=self.next_frame_icon, command=self.parent.playback_panel.on_next_frame)
         self.speedup_icon = PhotoImage(file='./media/icons8-fast-forward-32.png')
         self.speedup = Button(self, image=self.speedup_icon, command=self.parent.playback_panel.on_speed_up)
         self.speeddown_icon = PhotoImage(file='./media/icons8-rewind-32.png')
@@ -376,7 +376,7 @@ class ControlBar(Frame):
         self.speeddown.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.speedup.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
-        self.next_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
+        # self.next_frame.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.jump_backword.pack(side=LEFT, fill=Y, padx=1, pady=3)
         self.jump_forward.pack(side=LEFT, fill=Y, padx=1, pady=3)
         ttk.Separator(self, orient=VERTICAL).pack(side=LEFT, fill=Y, padx=5)
@@ -1472,8 +1472,8 @@ class MainApplication(Frame):
                 self.status_label.config(text="Speed Up")
             elif event.widget == self.parent.control_bar.speeddown:
                 self.status_label.config(text="Speed Down")
-            elif event.widget == self.parent.control_bar.next_frame:
-                self.status_label.config(text="Next Frame")
+            # elif event.widget == self.parent.control_bar.next_frame:
+            #     self.status_label.config(text="Next Frame")
             elif event.widget == self.parent.control_bar.jump_forward:
                 self.status_label.config(text="Jump Forward")
             elif event.widget == self.parent.control_bar.jump_backword:
@@ -1660,7 +1660,8 @@ class MainApplication(Frame):
         self.bind_all("<Control-Key-e>", self.playback_panel.on_click)
         self.bind_all("<Control-Key-m>", self.on_open_event_manager_menu_click)
         self.bind_all("<Control-Key-r>", self.on_reset)
-        self.bind_all("<Right>", self.playback_panel.on_next_frame)
+        self.bind_all("<Right>", self.control_bar.on_jump_backward)
+        self.bind_all("<Left>", self.control_bar.on_jump_forward)
 
 
 if __name__ == "__main__":
